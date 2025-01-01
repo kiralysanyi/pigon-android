@@ -34,11 +34,13 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +48,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.trashworks.pigon.ui.theme.PigonTheme
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
@@ -53,7 +56,6 @@ import org.json.JSONObject
 fun ChatScreen(navController: NavController, chatInfo: String) {
     val chatJson = JSONObject(chatInfo)
     val chatID = chatJson.getInt("chatid");
-    Log.d("Open chat", chatID.toString())
     var userInfo by remember {
         mutableStateOf(JSONObject())
     }
@@ -64,6 +66,10 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
 
     var messagesLoaded by remember {
         mutableStateOf(false)
+    }
+
+    var isLoading by remember {
+        mutableStateOf(true)
     }
 
     var isImageViewerOpen by remember {
@@ -82,6 +88,10 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
         mutableStateOf("")
     }
 
+    var page by remember {
+        mutableStateOf(1)
+    }
+
     var messages by remember { mutableStateOf(listOf<JSONObject>()) }
 
     val scope = rememberCoroutineScope();
@@ -89,7 +99,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
         mutableStateOf("")
     }
 
-    var listState = rememberLazyListState()
+    val listState = rememberLazyListState()
 
     DisposableEffect(Unit) {
         Log.d("Is socket initialized???", SocketConnection.initialized.toString())
@@ -102,7 +112,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                 //add message to messages;
                 messages = messages + msgData;
                 scope.launch {
-                    listState.scrollToItem(messages.size - 1);
+                    listState.scrollToItem(0);
                 }
             }
         })
@@ -112,8 +122,53 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
         }
     }
 
+    var isAtTop by remember { mutableStateOf(false) }
+
+    var reachedLastPage by remember {
+        mutableStateOf(false)
+    }
+
+
     val context = LocalContext.current.applicationContext;
+
+    LaunchedEffect(isAtTop) {
+        if (isAtTop && !isLoading && !reachedLastPage) {
+            isLoading = true;
+            scope.launch {
+                page++;
+                APIHandler.getMessages(chatID, page = page) { res ->
+                    Log.d("Fing", res.dataArray.toString())
+                    Log.d("Fing", res.data.toString())
+                    if (res.dataArray.length() == 0) {
+                        reachedLastPage = true;
+                    }
+                    messages += res.dataArray.let { jsonArray ->
+                        List(jsonArray.length()) { index ->
+                            jsonArray.getJSONObject(index)
+                        }
+                    }
+
+                    isLoading = false;
+
+                }
+            }
+        }
+    }
+
+    // Observe scroll state
+    LaunchedEffect(listState.firstVisibleItemIndex) {
+
+        snapshotFlow {
+            val isLastItemVisible = listState.firstVisibleItemIndex + listState.layoutInfo.visibleItemsInfo.count() == listState.layoutInfo.totalItemsCount
+            isLastItemVisible
+        }
+            .distinctUntilChanged() // Avoid redundant updates
+            .collect { isAtTop = it }
+    }
+
     LaunchedEffect(Unit) {
+
+
         scope.launch {
             APIHandler.getUserInfo { res ->
                 userInfo = res.data.getJSONObject("data");
@@ -134,11 +189,11 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                         }
                     }
 
-                    messages = messages.reversed();
                     messagesLoaded = true;
+                    isLoading = false;
 
                     scope.launch {
-                        listState.scrollToItem(messages.size - 1);
+                        listState.scrollToItem(0);
                     }
                 }
             }
@@ -219,7 +274,8 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                     .fillMaxWidth()
                     .weight(1f)
                     .background(MaterialTheme.colorScheme.background),
-                state = listState
+                state = listState,
+                reverseLayout = true
             ) {
                 if (messagesLoaded == true) {
                     //render messages
@@ -321,7 +377,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
             }
         }
 
-        if (!messagesLoaded) {
+        if (isLoading) {
             Box(modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background),
