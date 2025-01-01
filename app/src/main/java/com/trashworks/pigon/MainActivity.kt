@@ -125,7 +125,7 @@ fun PigonAppNavGraph() {
         composable(
             route = "main_screen"
         ) {
-            MainScreen(navController = navController)
+            MainScreen(navController = navController, dsWrapper)
         }
 
         composable<Chat> { backStackEntry ->
@@ -245,77 +245,4 @@ fun LoadingScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
         }
     }
 
-}
-
-
-
-
-@Composable
-fun MainScreen(navController: NavController) {
-    // Define a state to hold the chat list
-    var chats by remember { mutableStateOf(listOf<JSONObject>()) }
-    // Loading state
-    var isLoading by remember { mutableStateOf(true) }
-
-    var scope = rememberCoroutineScope()
-    // Use LaunchedEffect to call the API once when the composable is first composed
-    LaunchedEffect(Unit) {
-        scope.launch {
-            APIHandler.getChats { res ->
-                if (res.success) {
-                    // Update chats state with the fetched data
-                    chats = res.data.getJSONArray("data").let { jsonArray ->
-                        List(jsonArray.length()) { index ->
-                            jsonArray.getJSONObject(index)
-                        }
-                    }
-                } else {
-                    Log.e("Fetch chats", res.message)
-                }
-                // Set loading to false once data is fetched
-                isLoading = false
-            }
-        }
-
-    }
-
-    // Show a loading state or the actual UI
-    if (isLoading) {
-        // Display loading indicator
-        Text("Loading...", color = MaterialTheme.colorScheme.onBackground)
-    } else {
-        // Display the chats once data is loaded using LazyColumn
-        PigonTheme {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
-            ) {
-                items(chats) { chat ->
-
-                    Row(modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            //open chat
-
-                            navController.navigate(Chat(chatInfo = chat.toString()))
-                        }) {
-                        if (chat.getInt("groupchat") == 0) {
-                            val participants = chat.getJSONArray("participants");
-                            Log.d("Kecske", participants.toString())
-                            val usrID = participants.get(participants.length() - 1);
-                            LoadImageFromUrl("https://pigon.ddns.net/api/v1/auth/pfp?id=$usrID&smol=true")
-                        }
-
-                        Text(
-                            chat.getString("name"),
-                            color = MaterialTheme.colorScheme.onBackground,
-                            modifier = Modifier.padding(16.dp) // Optional: Add padding for spacing
-                        )
-                    }
-
-                }
-            }
-        }
-    }
 }

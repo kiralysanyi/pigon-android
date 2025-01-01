@@ -111,7 +111,14 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
 
     val context = LocalContext.current.applicationContext;
     LaunchedEffect(Unit) {
+        scope.launch {
+            APIHandler.getUserInfo { res ->
+                userInfo = res.data.getJSONObject("data");
+                Log.d("UserInfo", userInfo.toString())
+                userInfoLoaded = true;
 
+            }
+        }
 
         if (!messagesLoaded) {
             scope.launch {
@@ -132,15 +139,6 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                     }
                 }
             }
-
-        }
-    }
-
-    if (!userInfoLoaded) {
-        APIHandler.getUserInfo { res ->
-            userInfo = res.data.getJSONObject("data");
-            Log.d("UserInfo", userInfo.toString())
-            userInfoLoaded = true;
 
         }
     }

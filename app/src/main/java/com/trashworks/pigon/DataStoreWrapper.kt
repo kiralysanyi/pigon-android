@@ -31,6 +31,15 @@ class DataStoreWrapper(private val context: Context) {
 
     // Check if the string exists in DataStore
     suspend fun hasString(): Boolean {
-        return getString() != null
+        if (getString() == null) {
+            return  false
+        }
+
+        if (getString() == "") {
+            return  false
+        }
+
+        return  true
+
     }
 }

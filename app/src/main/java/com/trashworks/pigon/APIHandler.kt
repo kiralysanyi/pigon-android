@@ -64,7 +64,7 @@ object APIHandler {
         return cookies;
     }
 
-    fun getUserInfo(onResult: (ReturnObject) -> Unit) {
+    suspend fun getUserInfo(onResult: suspend (ReturnObject) -> Unit) {
         if (!isLoggedIn) {
             onResult(ReturnObject(false, "You have to log in first."));
             return;
@@ -107,6 +107,24 @@ object APIHandler {
                 // Handle error and send failure result
                 withContext(Dispatchers.Main) {
                     onResult(ReturnObject(false, "Error: ${e.message}"))
+                }
+            }
+        }
+    }
+
+    suspend fun checkIfTokenValid(onResult: suspend (ReturnObject) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        withContext(Dispatchers.IO) {
+            getUserInfo { res ->
+
+                if (!res.success) {
+                    onResult(ReturnObject(res.success, "User not logged in"))
+                } else {
+                    onResult(ReturnObject(res.success, "User logged in"))
                 }
             }
         }
@@ -164,8 +182,11 @@ object APIHandler {
 
     }
 
-    fun setCookies(cookiestring: String) {
-
+    suspend fun setCookies(cookiestring: String, dsWrapper: DataStoreWrapper? = null) {
+        Log.d("Setcookie", cookiestring)
+        if (dsWrapper != null) {
+            dsWrapper.saveString(cookiestring)
+        }
         Log.d("Cookie: ", cookiestring)
         cookies = cookiestring;
         requestHeaders =
@@ -190,7 +211,53 @@ object APIHandler {
         return file
     }
 
-    suspend fun uploadToCdn(location: Uri, onResult: (filename: String) -> Unit, chatID: Int, context: Context) {
+    suspend fun logout(dsWrapper: DataStoreWrapper, onResult: (Boolean) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(false);
+        }
+
+        withContext(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url("$uri/api/v1/auth/logout")
+                .headers(requestHeaders)
+                .get()
+                .build()
+
+            try {
+                val response = client.newCall(request).execute()
+                val responseString = response.body?.string()
+                val responseJson = JSONObject(responseString);
+
+                if (responseJson.getBoolean("success") == true) {
+                    if (responseString != null) {
+                        Log.d("Logout", responseString)
+                    }
+                    isLoggedIn = false;
+                    dsWrapper.saveString("");
+                    withContext(Dispatchers.Main) {
+                        onResult(true)
+                    }
+
+
+                } else {
+                    if (responseString != null) {
+                        Log.e("Logout", responseString)
+                    }
+                    onResult(false)
+                }
+            } catch (e: Exception) {
+                Log.e("Logout", e.toString())
+                onResult(false)
+            }
+        }
+    }
+
+    suspend fun uploadToCdn(
+        location: Uri,
+        onResult: (filename: String) -> Unit,
+        chatID: Int,
+        context: Context
+    ) {
         if (!isLoggedIn) {
             return;
         }
@@ -205,7 +272,12 @@ object APIHandler {
             // Build the MultipartBody
             val multipartBody = MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
-                .addPart(MultipartBody.Part.createFormData("chatid", chatID.toString())) // Add chatId
+                .addPart(
+                    MultipartBody.Part.createFormData(
+                        "chatid",
+                        chatID.toString()
+                    )
+                ) // Add chatId
                 .addPart(filePart) // Add the file
                 .build()
 
