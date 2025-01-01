@@ -1,9 +1,12 @@
 package com.trashworks.pigon
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -13,6 +16,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.collection.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -75,15 +79,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import androidx.navigation.toRoute
 import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.shouldShowRationale
+import com.google.firebase.Firebase
+import com.google.firebase.messaging.messaging
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import okhttp3.Headers
@@ -100,7 +113,20 @@ class MainActivity : ComponentActivity() {
 
 
         setContent {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                RequestNotificationPermission(LocalContext.current, this)
+            }
             PigonAppNavGraph()
+        }
+    }
+}
+
+fun RequestNotificationPermission(context: Context, activity: MainActivity) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+        if (!hasPermission) {
+            ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0)
         }
     }
 }
@@ -111,6 +137,7 @@ data class Chat(val chatInfo: String)
 
 @Composable
 fun PigonAppNavGraph() {
+
     val dsWrapper = DataStoreWrapper(context = LocalContext.current.applicationContext)
     val navController = rememberNavController()
 
@@ -151,6 +178,8 @@ fun PigonAppNavGraph() {
 
     ConnectionChecker(LocalContext.current, navController)
 }
+
+
 
 
 @Composable

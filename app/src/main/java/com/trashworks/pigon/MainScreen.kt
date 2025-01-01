@@ -47,9 +47,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.firebase.Firebase
+import com.google.firebase.messaging.messaging
 import com.trashworks.pigon.ui.theme.PigonTheme
 import io.socket.emitter.Emitter
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import org.json.JSONObject
 
 @Composable
@@ -75,6 +78,15 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                 userDataLoaded = true;
             }
         }
+
+        scope.launch {
+            val token = Firebase.messaging.token.await();
+            Log.d("FBTOKEN", token)
+            APIHandler.submitFirebaseToken(token, onResult = {res ->
+                Log.d("MainScreen", "Submitted firebase token with result: " + res.message)
+            })
+        }
+
         val listener = Emitter.Listener {
             scope.launch {
                 APIHandler.getChats { res ->

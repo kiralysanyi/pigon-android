@@ -65,6 +65,44 @@ object APIHandler {
         return cookies;
     }
 
+    fun submitFirebaseToken(token: String, onResult: (ReturnObject) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        GlobalScope.launch {
+            withContext(Dispatchers.IO) {
+
+                val body = JSONObject().apply {
+                    put("registrationToken", token)
+                }
+                val reqbody = body.toString().toRequestBody(contentType = json)
+                val request = Request.Builder()
+                    .url("$uri/api/v1/firebase/register")
+                    .headers(requestHeaders)
+                    .post(reqbody)
+                    .build()
+
+                try {
+                    val response = client.newCall(request).execute()
+                    val responseString = response.body?.string();
+                    if (responseString != null) {
+                        Log.d("Firebase reg", responseString)
+                    }
+                    val responseJson = JSONObject(responseString);
+                    onResult(ReturnObject(responseJson.getBoolean("success"), responseJson.getString("message")));
+                } catch (e: Exception) {
+                    onResult(ReturnObject(false, e.toString()))
+                }
+
+
+
+            }
+        }
+
+    }
+
     suspend fun getUserInfo(onResult: suspend (ReturnObject) -> Unit) {
         if (!isLoggedIn) {
             onResult(ReturnObject(false, "You have to log in first."));
