@@ -112,6 +112,37 @@ object APIHandler {
         }
     }
 
+    suspend fun getDevices(onResult: suspend (ReturnObject) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        withContext(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url("$uri/api/v1/auth/devices")
+                .headers(requestHeaders)
+                .get()
+                .build()
+
+            try {
+                val response = client.newCall(request).execute()
+                val responseString = response.body?.string();
+                val responseJson = JSONObject(responseString);
+                if (responseJson.getBoolean("success")) {
+                    onResult(ReturnObject(true, "Retrieved devices info successfully", dataArray = responseJson.getJSONArray("data")))
+                } else {
+                    onResult(ReturnObject(false, "Failed to retrieve devices info"));
+                }
+            } catch (e: Exception) {
+                Log.e("GetDevices", e.toString())
+                onResult(ReturnObject(false, "Failed to retrieve devices info"));
+                //TODO(Notify the user about the error)
+            }
+
+        }
+    }
+
     suspend fun checkIfTokenValid(onResult: suspend (ReturnObject) -> Unit) {
         if (!isLoggedIn) {
             onResult(ReturnObject(false, "You have to log in first."));

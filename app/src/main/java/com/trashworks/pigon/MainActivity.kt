@@ -122,6 +122,10 @@ fun PigonAppNavGraph() {
         composable("login_screen") {
             LoginScreen(navController = navController, dsWrapper)
         }
+
+        composable("devices_screen") {
+            DevicesScreen(navController = navController)
+        }
         composable(
             route = "main_screen"
         ) {

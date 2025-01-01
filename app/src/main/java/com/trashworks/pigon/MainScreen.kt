@@ -110,6 +110,13 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                                 }
                             }
                         )
+                        NavigationDrawerItem(
+                            label = { Text(text = "Devices") },
+                            selected = false,
+                            onClick = {
+                                navController.navigate("devices_screen")
+                            }
+                        )
                     }
                 },
             ) {
