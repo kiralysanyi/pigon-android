@@ -1,0 +1,349 @@
+@file:OptIn(DelicateCoroutinesApi::class)
+
+package com.trashworks.pigon
+
+import android.content.Context
+import android.net.Uri
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.Headers
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
+import org.json.JSONObject
+import java.io.IOException
+import android.os.Build
+import android.util.Log
+import androidx.compose.ui.platform.LocalContext
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import okhttp3.MediaType
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.Flow
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import org.json.JSONArray
+import java.io.File
+import java.io.FileOutputStream
+
+class ReturnObject {
+    public var message: String
+    public var success: Boolean
+    public var data: JSONObject
+    public var dataArray: JSONArray
+
+    constructor(
+        success: Boolean,
+        message: String,
+        data: JSONObject = JSONObject(),
+        dataArray: JSONArray = JSONArray()
+    ) {
+        this.success = success;
+        this.message = message;
+        this.data = data;
+        this.dataArray = dataArray;
+    }
+}
+
+
+object APIHandler {
+    private val json = "application/json".toMediaType();
+    private val client = OkHttpClient()
+    private val uri = "https://pigon.ddns.net";
+    private var requestHeaders = Headers.Builder().set("Content-Type", "application/json").build();
+    private lateinit var cookies: String;
+    private var isLoggedIn = false;
+
+    fun getCookies(): String {
+        return cookies;
+    }
+
+    fun getUserInfo(onResult: (ReturnObject) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        // Launch a coroutine on the IO thread to make the network request
+        GlobalScope.launch(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url("$uri/api/v1/auth/userinfo")
+                .headers(requestHeaders)
+                .get()
+                .build()
+
+            try {
+                val response = client.newCall(request).execute()
+                val res = JSONObject(response.body?.string())
+
+                if (!response.isSuccessful) {
+
+                    // Switching back to the main thread to return the result
+                    withContext(Dispatchers.Main) {
+                        onResult(
+                            ReturnObject(
+                                res.getBoolean("success"),
+                                "Something went wrong...",
+                                res
+                            )
+                        )
+                    }
+                    return@launch
+                }
+
+
+                // Switching back to the main thread to return the result
+                withContext(Dispatchers.Main) {
+
+                    onResult(ReturnObject(true, "Successfully retrieved userinfo", data = res))
+                }
+            } catch (e: Exception) {
+                // Handle error and send failure result
+                withContext(Dispatchers.Main) {
+                    onResult(ReturnObject(false, "Error: ${e.message}"))
+                }
+            }
+        }
+    }
+
+    suspend fun getMessages(chatID: Int, page: Int = 1, onResult: (ReturnObject) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        val url = "$uri/api/v1/chat/messages?chatid=$chatID&page=$page";
+
+        // Launch a coroutine on the IO thread to make the network request
+        return withContext(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url(url)
+                .headers(requestHeaders)
+                .get()
+                .build()
+
+            try {
+                val response = client.newCall(request).execute()
+
+
+                if (!response.isSuccessful) {
+                    val res = JSONObject(response.body?.string())
+                    // Switching back to the main thread to return the result
+                    withContext(Dispatchers.Main) {
+                        onResult(
+                            ReturnObject(
+                                res.getBoolean("success"),
+                                "Something went wrong...",
+                                res
+                            )
+                        )
+                    }
+
+                }
+
+
+                val res = JSONArray(response.body?.string())
+
+                onResult(ReturnObject(true, "Successfully retrieved messages", dataArray = res))
+
+            } catch (e: Exception) {
+                // Handle error and send failure result
+                Log.e("ERROR bLyaT", e.toString())
+                withContext(Dispatchers.Main) {
+                    onResult(ReturnObject(false, "Error: ${e.message}"))
+                }
+            }
+        }
+
+
+    }
+
+    fun setCookies(cookiestring: String) {
+
+        Log.d("Cookie: ", cookiestring)
+        cookies = cookiestring;
+        requestHeaders =
+            Headers.Builder().set("Content-Type", "application/json").set("Cookie", cookiestring)
+                .build();
+        Log.d("Request headers set: ", requestHeaders.toString())
+        isLoggedIn = true;
+    }
+
+    // Helper function to convert Uri to File
+    fun uriToFile(context: Context, uri: Uri): File {
+        val inputStream = context.contentResolver.openInputStream(uri)
+        val file = File(context.cacheDir, "temp_file_${System.currentTimeMillis()}.jpg")
+        val outputStream = FileOutputStream(file)
+
+        inputStream?.use { input ->
+            outputStream.use { output ->
+                input.copyTo(output)
+            }
+        }
+
+        return file
+    }
+
+    suspend fun uploadToCdn(location: Uri, onResult: (filename: String) -> Unit, chatID: Int, context: Context) {
+        if (!isLoggedIn) {
+            return;
+        }
+
+        withContext(Dispatchers.IO) {
+            val file = uriToFile(context, location)
+
+            // Create MultipartBody.Part for the file
+            val fileRequestBody = file.asRequestBody("image/*".toMediaTypeOrNull())
+            val filePart = MultipartBody.Part.createFormData("file", file.name, fileRequestBody)
+
+            // Build the MultipartBody
+            val multipartBody = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addPart(MultipartBody.Part.createFormData("chatid", chatID.toString())) // Add chatId
+                .addPart(filePart) // Add the file
+                .build()
+
+            // Create OkHttp client and request
+
+            val request = Request.Builder()
+                .url("$uri/api/v1/chat/cdn")
+                .post(multipartBody)
+                .headers(requestHeaders)
+                .build()
+
+            // Execute the request
+            try {
+                val response = client.newCall(request).execute()
+                if (!response.isSuccessful) {
+                    response.body?.string()?.let { Log.e("CDN", it) }
+                } else {
+                    val responseString = response.body?.string();
+                    val resJson = JSONObject(responseString)
+                    Log.d("CDN", resJson.toString())
+                    onResult("/api/v1/chat/cdn?filename=" + resJson.getString("filename"))
+                }
+
+            } catch (e: Exception) {
+                Log.e("CDN_error", e.toString())
+            }
+
+        }
+    }
+
+    suspend fun getChats(onResult: (ReturnObject) -> Unit) {
+        if (!SocketConnection.initialized) {
+            SocketConnection.init()
+        }
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        return withContext(Dispatchers.IO) {
+
+            // Launch a coroutine on the IO thread to make the network request
+            val request = Request.Builder()
+                .url("$uri/api/v1/chat/chats")
+                .headers(requestHeaders)
+                .get()
+                .build()
+
+            try {
+                val response = client.newCall(request).execute()
+
+                // Parse the response body as a JSONObject
+                val res = JSONObject(response.body?.string())
+                if (!response.isSuccessful) {
+                    // Switching back to the main thread to return the result
+                    withContext(Dispatchers.Main) {
+                        onResult(
+                            ReturnObject(
+                                res.getBoolean("success"),
+                                res.getJSONObject("data").getString("message"),
+                                res
+                            )
+                        )
+                    }
+
+                }
+
+
+                // Switching back to the main thread to return the result
+                withContext(Dispatchers.Main) {
+
+                    if (res.getBoolean("success") == true) {
+                        onResult(ReturnObject(true, "Successfully retrieved chat list", res))
+                    }
+
+                }
+            } catch (e: Exception) {
+                Log.e("BLYAT", e.toString())
+                // Handle error and send failure result
+                withContext(Dispatchers.Main) {
+                    onResult(ReturnObject(false, "Error: ${e.message}"))
+                }
+            }
+        }
+
+
+    }
+
+    fun login(username: String, password: String, onResult: (ReturnObject) -> Unit) {
+        // Launch a coroutine on the IO thread to make the network request
+        GlobalScope.launch(Dispatchers.IO) {
+            val body = JSONObject().apply {
+                put("username", username)
+                put("password", password)
+                put("deviceName", "${Build.BRAND} ${Build.MODEL}")
+            }
+            val reqbody = body.toString().toRequestBody(contentType = json)
+            val request = Request.Builder()
+                .url("$uri/api/v1/auth/login")
+                .headers(requestHeaders)
+                .post(reqbody)
+                .build()
+
+            try {
+                val response = client.newCall(request).execute()
+                // Get the cookies
+                cookies = response.headers["Set-Cookie"].toString()
+                requestHeaders =
+                    Headers.Builder().set("Content-Type", "application/json").set("Cookie", cookies)
+                        .build();
+                // Parse the response body as a JSONObject
+                val res = JSONObject(response.body?.string())
+                if (!response.isSuccessful) {
+                    // Switching back to the main thread to return the result
+                    withContext(Dispatchers.Main) {
+                        onResult(
+                            ReturnObject(
+                                res.getBoolean("success"),
+                                res.getJSONObject("data").getString("message"),
+                                res
+                            )
+                        )
+                    }
+                    return@launch
+                }
+
+
+                // Switching back to the main thread to return the result
+                withContext(Dispatchers.Main) {
+                    isLoggedIn = true;
+                    onResult(ReturnObject(res.getBoolean("success"), res.toString(), res))
+                }
+            } catch (e: Exception) {
+                // Handle error and send failure result
+                withContext(Dispatchers.Main) {
+                    onResult(ReturnObject(false, "Error: ${e.message}"))
+                }
+            }
+        }
+    }
+}
