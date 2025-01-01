@@ -67,6 +67,10 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
         scope.launch {
             APIHandler.getUserInfo { res ->
                 Log.d("MainScreen", "Got userinfo: ${res.data.toString()}")
+                if (!res.success) {
+                    navController.navigate("loading_screen")
+                    return@getUserInfo;
+                }
                 userData = res.data.getJSONObject("data");
                 userDataLoaded = true;
             }

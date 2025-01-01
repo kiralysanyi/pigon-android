@@ -82,6 +82,7 @@ import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -113,6 +114,8 @@ fun PigonAppNavGraph() {
     val dsWrapper = DataStoreWrapper(context = LocalContext.current.applicationContext)
     val navController = rememberNavController()
 
+
+
     NavHost(
         navController = navController,
         startDestination = "loading_screen",
@@ -128,6 +131,11 @@ fun PigonAppNavGraph() {
         composable("devices_screen") {
             DevicesScreen(navController = navController)
         }
+
+        composable("offline_screen") {
+            OfflineScreen(navController)
+        }
+
         composable(
             route = "main_screen"
         ) {
@@ -139,6 +147,9 @@ fun PigonAppNavGraph() {
             ChatScreen(navController, chat.chatInfo);
         }
     }
+
+
+    ConnectionChecker(LocalContext.current, navController)
 }
 
 

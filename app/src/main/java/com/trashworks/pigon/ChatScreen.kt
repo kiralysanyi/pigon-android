@@ -184,9 +184,15 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
 
         scope.launch {
             APIHandler.getUserInfo { res ->
-                userInfo = res.data.getJSONObject("data");
-                Log.d("UserInfo", userInfo.toString())
-                userInfoLoaded = true;
+                if (!res.success) {
+                    navController.navigate("loading_screen");
+
+                } else {
+                    userInfo = res.data.getJSONObject("data");
+                    Log.d("UserInfo", userInfo.toString())
+                    userInfoLoaded = true;
+                }
+
 
             }
         }
