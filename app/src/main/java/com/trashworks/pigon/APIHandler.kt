@@ -91,16 +91,61 @@ object APIHandler {
                         Log.d("Firebase reg", responseString)
                     }
                     val responseJson = JSONObject(responseString);
-                    onResult(ReturnObject(responseJson.getBoolean("success"), responseJson.getString("message")));
+                    onResult(
+                        ReturnObject(
+                            responseJson.getBoolean("success"),
+                            responseJson.getString("message")
+                        )
+                    );
                 } catch (e: Exception) {
                     onResult(ReturnObject(false, e.toString()))
                 }
 
 
-
             }
         }
 
+    }
+
+    suspend fun removeDevice(deviceID: String, onResult: (ReturnObject) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        GlobalScope.launch {
+            withContext(Dispatchers.IO) {
+
+                val body = JSONObject().apply {
+                    put("deviceID", deviceID)
+                }
+                val reqbody = body.toString().toRequestBody(contentType = json)
+                val request = Request.Builder()
+                    .url("$uri/api/v1/auth/removedevice")
+                    .headers(requestHeaders)
+                    .delete(reqbody)
+                    .build()
+
+                try {
+                    val response = client.newCall(request).execute()
+                    val responseString = response.body?.string();
+                    if (responseString != null) {
+                        Log.d("Removedevice", responseString)
+                    }
+                    val responseJson = JSONObject(responseString);
+                    onResult(
+                        ReturnObject(
+                            responseJson.getBoolean("success"),
+                            responseJson.getString("message")
+                        )
+                    );
+                } catch (e: Exception) {
+                    onResult(ReturnObject(false, e.toString()))
+                }
+
+
+            }
+        }
     }
 
     suspend fun getUserInfo(onResult: suspend (ReturnObject) -> Unit) {
@@ -169,7 +214,13 @@ object APIHandler {
                 val responseString = response.body?.string();
                 val responseJson = JSONObject(responseString);
                 if (responseJson.getBoolean("success")) {
-                    onResult(ReturnObject(true, "Retrieved devices info successfully", dataArray = responseJson.getJSONArray("data")))
+                    onResult(
+                        ReturnObject(
+                            true,
+                            "Retrieved devices info successfully",
+                            dataArray = responseJson.getJSONArray("data")
+                        )
+                    )
                 } else {
                     onResult(ReturnObject(false, "Failed to retrieve devices info"));
                 }
