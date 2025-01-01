@@ -9,11 +9,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,6 +25,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
@@ -45,8 +49,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.trashworks.pigon.ui.theme.PigonTheme
 import io.socket.emitter.Emitter
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -130,6 +137,8 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
     var reachedLastPage by remember {
         mutableStateOf(false)
     }
+
+    val systemUiController = rememberSystemUiController();
 
 
     val context = LocalContext.current.applicationContext;
@@ -231,20 +240,22 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .height(64.dp)
+                    .background(MaterialTheme.colorScheme.tertiaryContainer)
+                    .heightIn(min = 84.dp)
+                    .statusBarsPadding(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Icons.AutoMirrored.Rounded.ArrowBack,
+                    Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
                     contentDescription = "Go back to chats",
                     modifier = Modifier
                         .height(50.dp)
-                        .padding(7.dp)
+                        .padding(5.dp)
                         .width(50.dp)
                         .clickable {
                             navController.navigate("main_screen")
                         },
-                    tint = MaterialTheme.colorScheme.onSurface
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer
 
 
                 )
@@ -260,13 +271,25 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                                 }
                             }
                         }
-                        LoadImageFromUrl("https://pigon.ddns.net/api/v1/auth/pfp?id=$pfpID&smol=true")
+                        LoadImageFromUrl(
+                            "https://pigon.ddns.net/api/v1/auth/pfp?id=$pfpID&smol=true",
+                            modifier = Modifier
+                                .width(50.dp)
+                                .height(50.dp)
+                                .padding(5.dp)
+                                .clip(RoundedCornerShape(50.dp))
+
+                        )
 
                     }
 
                     Text(
                         text = chatJson.getString("name"),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        fontSize = 20.sp,
+                        modifier = Modifier
+                            .padding(start = 10.dp)
+
                     )
                 }
 
@@ -408,6 +431,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.background)
+                    .navigationBarsPadding()
             ) {
                 Icon(
                     Icons.Rounded.Add, "Addicon", modifier = Modifier
@@ -462,6 +486,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background)
+                    .statusBarsPadding()
             ) {
                 Icon(
                     Icons.Rounded.Close, "Close image viewer", modifier = Modifier
@@ -485,6 +510,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background)
+                    .statusBarsPadding()
             ) {
                 Icon(
                     Icons.Rounded.Close, "Close video viewer", modifier = Modifier

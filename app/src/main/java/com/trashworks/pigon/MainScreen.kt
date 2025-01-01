@@ -6,13 +6,20 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,8 +41,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.trashworks.pigon.ui.theme.PigonTheme
 import io.socket.emitter.Emitter
@@ -50,8 +60,17 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
     var isLoading by remember { mutableStateOf(true) }
     var scope = rememberCoroutineScope()
 
+    var userDataLoaded by remember { mutableStateOf(false) }
+    var userData by remember { mutableStateOf(JSONObject()) }
 
     DisposableEffect("") {
+        scope.launch {
+            APIHandler.getUserInfo { res ->
+                Log.d("MainScreen", "Got userinfo: ${res.data.toString()}")
+                userData = res.data.getJSONObject("data");
+                userDataLoaded = true;
+            }
+        }
         val listener = Emitter.Listener {
             scope.launch {
                 APIHandler.getChats { res ->
@@ -109,6 +128,9 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
 
     }
 
+
+
+    val insets = WindowInsets.systemBars.union(WindowInsets.ime)
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     // Show a loading state or the actual UI
@@ -131,7 +153,18 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                 drawerState = drawerState,
                 drawerContent = {
                     ModalDrawerSheet {
-                        Text("Pigon", modifier = Modifier.padding(16.dp))
+                        if (userDataLoaded) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                                LoadImageFromUrl("https://pigon.ddns.net/api/v1/auth/pfp?id=${userData.getInt("id")}", modifier = Modifier
+                                    .height(100.dp)
+                                    .width(100.dp)
+                                    .clip(RoundedCornerShape(100.dp))
+                                )
+                                Text(userData.getString("username"), fontSize = 30.sp)
+                            }
+
+                        }
+
                         HorizontalDivider()
                         NavigationDrawerItem(
                             label = { Text(text = "Logout") },
@@ -161,13 +194,15 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(64.dp)
-                            .background(MaterialTheme.colorScheme.background)
+                            .height(84.dp)
+                            .background(MaterialTheme.colorScheme.tertiaryContainer)
                             .padding(4.dp)
+                            .statusBarsPadding()
                     ) {
                         Icon(Icons.Rounded.Menu, "Menu icon", modifier = Modifier
                             .height(56.dp)

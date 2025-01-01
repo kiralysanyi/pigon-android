@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -55,8 +56,9 @@ fun DevicesScreen(navController: NavController) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .height(64.dp)
+                    .background(MaterialTheme.colorScheme.tertiaryContainer)
+                    .height(84.dp)
+                    .statusBarsPadding()
             ) {
                 Icon(
                     Icons.AutoMirrored.Rounded.ArrowBack,
@@ -68,7 +70,7 @@ fun DevicesScreen(navController: NavController) {
                         .clickable {
                             navController.navigate("main_screen")
                         },
-                    tint = MaterialTheme.colorScheme.onSurface
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer
 
 
                 )
