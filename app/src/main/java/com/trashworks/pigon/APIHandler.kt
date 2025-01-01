@@ -162,6 +162,7 @@ object APIHandler {
     }
 
     suspend fun getMessages(chatID: Int, page: Int = 1, onResult: (ReturnObject) -> Unit) {
+        Log.d("GetMessages", chatID.toString())
         if (!isLoggedIn) {
             onResult(ReturnObject(false, "You have to log in first."));
             return;

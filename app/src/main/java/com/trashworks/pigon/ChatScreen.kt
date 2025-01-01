@@ -48,6 +48,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.trashworks.pigon.ui.theme.PigonTheme
+import io.socket.emitter.Emitter
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -101,24 +102,27 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
 
     val listState = rememberLazyListState()
 
-    DisposableEffect(Unit) {
+    DisposableEffect("") {
         Log.d("Is socket initialized???", SocketConnection.initialized.toString())
-        SocketConnection.socket.on("message", { args ->
+        val listener = Emitter.Listener {
+                args ->
             val msgData = JSONObject(args[0].toString());
             msgData.put("senderid", msgData.getInt("senderID"))
             msgData.remove("senderID");
-            Log.d("msgdata", msgData.toString());
+            Log.d("msgdata", msgData.toString() + "Chatid: $chatID");
             if (msgData.getInt("chatID") == chatID) {
                 //add message to messages;
-                messages = messages + msgData;
+                messages = listOf(msgData) + messages
+                Log.d("AAAAAAAAAAAAAA",messages.toString())
                 scope.launch {
                     listState.scrollToItem(0);
                 }
             }
-        })
+        }
+        SocketConnection.socket.on("message", listener)
 
         onDispose {
-            SocketConnection.socket.off("message")
+            SocketConnection.socket.off("message", listener)
         }
     }
 
@@ -279,6 +283,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
             ) {
                 if (messagesLoaded == true) {
                     //render messages
+                    Log.d("AAAA", messages.toString())
                     items(messages) { message ->
                         val msgData = JSONObject(message.getString("message"));
 
