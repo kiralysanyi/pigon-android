@@ -104,8 +104,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
 
     DisposableEffect("") {
         Log.d("Is socket initialized???", SocketConnection.initialized.toString())
-        val listener = Emitter.Listener {
-                args ->
+        val listener = Emitter.Listener { args ->
             val msgData = JSONObject(args[0].toString());
             msgData.put("senderid", msgData.getInt("senderID"))
             msgData.remove("senderID");
@@ -113,7 +112,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
             if (msgData.getInt("chatID") == chatID) {
                 //add message to messages;
                 messages = listOf(msgData) + messages
-                Log.d("AAAAAAAAAAAAAA",messages.toString())
+                Log.d("AAAAAAAAAAAAAA", messages.toString())
                 scope.launch {
                     listState.scrollToItem(0);
                 }
@@ -163,7 +162,8 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
     LaunchedEffect(listState.firstVisibleItemIndex) {
 
         snapshotFlow {
-            val isLastItemVisible = listState.firstVisibleItemIndex + listState.layoutInfo.visibleItemsInfo.count() == listState.layoutInfo.totalItemsCount
+            val isLastItemVisible =
+                listState.firstVisibleItemIndex + listState.layoutInfo.visibleItemsInfo.count() == listState.layoutInfo.totalItemsCount
             isLastItemVisible
         }
             .distinctUntilChanged() // Avoid redundant updates
@@ -279,64 +279,123 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                     .weight(1f)
                     .background(MaterialTheme.colorScheme.background),
                 state = listState,
-                reverseLayout = true
+                reverseLayout = true,
+                horizontalAlignment = Alignment.Start
             ) {
-                if (messagesLoaded == true) {
+                if (messagesLoaded == true && userInfoLoaded) {
                     //render messages
                     Log.d("AAAA", messages.toString())
                     items(messages) { message ->
                         val msgData = JSONObject(message.getString("message"));
 
-                        Row(
+                        var bg = MaterialTheme.colorScheme.secondaryContainer;
+                        var color = MaterialTheme.colorScheme.onSecondaryContainer;
+
+                        var senderID = 0;
+                        try {
+                            senderID = message.getInt("senderid")
+                        } catch (e: Exception) {
+                            senderID = message.getInt("senderID")
+                        }
+
+
+                        if (senderID == userInfo.getInt("id")) {
+                            bg = MaterialTheme.colorScheme.primaryContainer
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        }
+
+                        var senderName = "";
+                        try {
+                            senderName = message.getString("username");
+                        } catch (e: Exception) {
+                            senderName = message.getString("senderName")
+                        }
+
+                        var read = true;
+
+                        try {
+                            read = message.getBoolean("read");
+                            Log.d("Read", read.toString())
+                        } catch (e: Exception) {
+                            Log.e("AA", e.toString())
+                            read = true;
+                        }
+
+                        if (read == false) {
+                            bg = MaterialTheme.colorScheme.primary;
+                            color = MaterialTheme.colorScheme.onPrimary;
+                        }
+
+                        Column(
                             modifier = Modifier
                                 .padding(16.dp)
                                 .clip(
                                     RoundedCornerShape(16.dp)
                                 )
                                 .widthIn(max = 250.dp)
-                                .background(MaterialTheme.colorScheme.primary)
-                        )
-                        {
-                            LoadImageFromUrl(
-                                "https://pigon.ddns.net/api/v1/auth/pfp?id=${
-                                    message.getInt(
-                                        "senderid"
-                                    )
-                                }&smol=true"
-                            )
-                            if (msgData.getString("type") == "text") {
-                                Text(
-                                    msgData.getString("content"),
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.padding(16.dp)
-                                )
-                            }
+                                .background(bg)
 
-                            if (msgData.getString("type") == "image") {
-                                val imgUrl =
-                                    "https://pigon.ddns.net/" + msgData.getString("content");
-                                Log.d("Loadimage", imgUrl)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .padding(10.dp)
+                            ) {
                                 LoadImageFromUrl(
-                                    imgUrl,
+                                    "https://pigon.ddns.net/api/v1/auth/pfp?id=${
+                                        message.getInt(
+                                            "senderid"
+                                        )
+                                    }&smol=true",
                                     modifier = Modifier
-                                        .heightIn(max = 200.dp)
-                                        .clickable {
-                                            Log.d("ImageViewer", "Opening image viewer")
-                                            imageViewerSource = imgUrl;
-                                            isImageViewerOpen = true;
-                                        })
-                            }
-                            if (msgData.getString("type") == "video") {
-                                val videoUrl =
-                                    "https://pigon.ddns.net/" + msgData.getString("content");
-                                Button(onClick = {
-                                    videoViewerSource = videoUrl
-                                    isVideoViewerOpen = true
-                                }, modifier = Modifier) {
-                                    Text("Play Video")
-                                }
+                                        .width(32.dp)
+                                        .height(32.dp)
+                                        .clip(RoundedCornerShape(32.dp))
+                                )
+
+                                Text(
+                                    text = senderName,
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    modifier = Modifier.padding(start = 10.dp)
+                                )
+
                             }
 
+                            Row {
+
+                                if (msgData.getString("type") == "text") {
+                                    Text(
+                                        msgData.getString("content"),
+                                        color = color,
+                                        modifier = Modifier.padding(16.dp)
+                                    )
+                                }
+
+                                if (msgData.getString("type") == "image") {
+                                    val imgUrl =
+                                        "https://pigon.ddns.net/" + msgData.getString("content");
+                                    Log.d("Loadimage", imgUrl)
+                                    LoadImageFromUrl(
+                                        imgUrl,
+                                        modifier = Modifier
+                                            .heightIn(max = 200.dp)
+                                            .clickable {
+                                                Log.d("ImageViewer", "Opening image viewer")
+                                                imageViewerSource = imgUrl;
+                                                isImageViewerOpen = true;
+                                            })
+                                }
+                                if (msgData.getString("type") == "video") {
+                                    val videoUrl =
+                                        "https://pigon.ddns.net/" + msgData.getString("content");
+                                    Button(onClick = {
+                                        videoViewerSource = videoUrl
+                                        isVideoViewerOpen = true
+                                    }, modifier = Modifier) {
+                                        Text("Play Video")
+                                    }
+                                }
+
+                            }
                         }
 
 
@@ -352,8 +411,8 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
             ) {
                 Icon(
                     Icons.Rounded.Add, "Addicon", modifier = Modifier
-                        .width(64.dp)
-                        .height(64.dp)
+                        .width(50.dp)
+                        .height(50.dp)
                         .clickable {
                             launcher.launch(
                                 PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -366,26 +425,32 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                     .weight(1f), onValueChange = { newVal ->
                     inputmsg = newVal
                 })
-                Button(onClick = {
-                    //send message
-                    SocketConnection.socket.emit(
-                        "message",
-                        JSONObject("{\"chatID\": $chatID, \"message\": {\"type\": \"text\", \"content\": \"$inputmsg\"}}")
-                    )
-                    inputmsg = "";
-                }) {
-                    Icon(
-                        Icons.AutoMirrored.Rounded.Send,
-                        contentDescription = "Send icon",
-                    )
-                }
+                Icon(
+                    Icons.AutoMirrored.Rounded.Send,
+                    contentDescription = "Send icon",
+                    modifier = Modifier
+                        .width(50.dp)
+                        .height(50.dp)
+                        .padding(10.dp)
+                        .clickable {
+                            //send message
+                            SocketConnection.socket.emit(
+                                "message",
+                                JSONObject("{\"chatID\": $chatID, \"message\": {\"type\": \"text\", \"content\": \"$inputmsg\"}}")
+                            )
+                            inputmsg = "";
+                        },
+                    tint = MaterialTheme.colorScheme.onBackground
+                )
+
             }
         }
 
         if (isLoading) {
-            Box(modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator()

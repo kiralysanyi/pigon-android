@@ -26,6 +26,7 @@ import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.trashworks.pigon.ui.theme.PigonTheme
+import io.socket.emitter.Emitter
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
@@ -49,7 +51,31 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
     var scope = rememberCoroutineScope()
 
 
+    DisposableEffect("") {
+        val listener = Emitter.Listener {
+            scope.launch {
+                APIHandler.getChats { res ->
+                    if (res.success) {
+                        // Update chats state with the fetched data
+                        chats = res.data.getJSONArray("data").let { jsonArray ->
+                            List(jsonArray.length()) { index ->
+                                jsonArray.getJSONObject(index)
+                            }
+                        }
+                    } else {
+                        Log.e("Fetch chats", res.message)
+                    }
+                    // Set loading to false once data is fetched
+                    isLoading = false
+                }
+            }
+        }
+        SocketConnection.socket.on("message", listener)
 
+        onDispose {
+            SocketConnection.socket.off("message", listener)
+        }
+    }
 
     // Use LaunchedEffect to call the API once when the composable is first composed
     LaunchedEffect(Unit) {
@@ -164,8 +190,16 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                     ) {
                         items(chats) { chat ->
 
+                            var bg = MaterialTheme.colorScheme.background
+                            var color = MaterialTheme.colorScheme.onBackground
+
+                            if (chat.getBoolean("hasUnreadMessages")) {
+                                bg = MaterialTheme.colorScheme.primaryContainer
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            }
                             Row(modifier = Modifier
                                 .fillMaxWidth()
+                                .background(bg)
                                 .clickable {
                                     //open chat
 
@@ -180,7 +214,7 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
 
                                 Text(
                                     chat.getString("name"),
-                                    color = MaterialTheme.colorScheme.onBackground,
+                                    color = color,
                                     modifier = Modifier.padding(16.dp) // Optional: Add padding for spacing
                                 )
                             }
