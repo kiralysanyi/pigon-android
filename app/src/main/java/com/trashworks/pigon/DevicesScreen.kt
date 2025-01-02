@@ -3,6 +3,7 @@ package com.trashworks.pigon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
@@ -32,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -108,13 +111,13 @@ fun DevicesScreen(navController: NavController) {
         Column(modifier = Modifier.fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
         ) {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.tertiaryContainer)
                     .height(84.dp)
                     .statusBarsPadding(),
-                verticalAlignment = Alignment.CenterVertically
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
@@ -125,9 +128,9 @@ fun DevicesScreen(navController: NavController) {
                         .width(50.dp)
                         .clickable {
                             navController.navigate("main_screen")
-                        },
+                        }
+                        .align(Alignment.BottomStart),
                     tint = MaterialTheme.colorScheme.onTertiaryContainer
-
 
                 )
 
@@ -150,6 +153,7 @@ fun DevicesScreen(navController: NavController) {
                     }
                     Row (modifier = Modifier
                         .padding(10.dp)
+                        .clip(RoundedCornerShape(25.dp))
                         .background(bg)
                         .fillMaxWidth()
                         .clickable {

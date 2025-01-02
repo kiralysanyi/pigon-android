@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -23,10 +24,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.automirrored.sharp.Send
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Button
@@ -35,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -48,7 +53,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -242,14 +249,14 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
         }
 
     PigonTheme {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Row(
+        Column(modifier = Modifier.fillMaxSize().imePadding()) {
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.tertiaryContainer)
                     .heightIn(min = 84.dp)
                     .statusBarsPadding(),
-                verticalAlignment = Alignment.CenterVertically
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
@@ -260,43 +267,47 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                         .width(50.dp)
                         .clickable {
                             navController.navigate("main_screen")
-                        },
+                        }
+                        .align(Alignment.BottomStart),
                     tint = MaterialTheme.colorScheme.onTertiaryContainer
 
 
                 )
-                if (userInfoLoaded == true) {
-                    if (chatJson.getInt("groupchat") == 0) {
-                        //display pfp if not groupchat
-                        val participants = chatJson.getJSONArray("participants")
-                        var pfpID = 0;
-                        if (participants.length() == 2) {
-                            for (i in 0..<participants.length()) {
-                                if (participants.get(i) != userInfo.getInt("id")) {
-                                    pfpID = participants.getInt(i);
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (userInfoLoaded == true) {
+                        if (chatJson.getInt("groupchat") == 0) {
+                            //display pfp if not groupchat
+                            val participants = chatJson.getJSONArray("participants")
+                            var pfpID = 0;
+                            if (participants.length() == 2) {
+                                for (i in 0..<participants.length()) {
+                                    if (participants.get(i) != userInfo.getInt("id")) {
+                                        pfpID = participants.getInt(i);
+                                    }
                                 }
                             }
+                            LoadImageFromUrl(
+                                "https://pigon.ddns.net/api/v1/auth/pfp?id=$pfpID&smol=true",
+                                modifier = Modifier
+                                    .width(50.dp)
+                                    .height(50.dp)
+                                    .padding(5.dp)
+                                    .clip(RoundedCornerShape(50.dp))
+
+                            )
+
                         }
-                        LoadImageFromUrl(
-                            "https://pigon.ddns.net/api/v1/auth/pfp?id=$pfpID&smol=true",
+
+                        Text(
+                            text = chatJson.getString("name"),
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            fontSize = 20.sp,
                             modifier = Modifier
-                                .width(50.dp)
-                                .height(50.dp)
-                                .padding(5.dp)
-                                .clip(RoundedCornerShape(50.dp))
+                                .padding(top = 10.dp, bottom = 10.dp)
 
                         )
-
                     }
-
-                    Text(
-                        text = chatJson.getString("name"),
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
-                        fontSize = 20.sp,
-                        modifier = Modifier
-                            .padding(start = 10.dp)
-
-                    )
                 }
 
 
@@ -436,42 +447,76 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.background)
-                    .navigationBarsPadding()
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .navigationBarsPadding(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     Icons.Rounded.Add, "Addicon", modifier = Modifier
                         .width(50.dp)
                         .height(50.dp)
+                        .padding(8.dp)
+                        .clip(RoundedCornerShape(50.dp))
+                        .background(MaterialTheme.colorScheme.secondary)
                         .clickable {
                             launcher.launch(
                                 PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
                         },
-                    tint = MaterialTheme.colorScheme.onBackground
+                    tint = MaterialTheme.colorScheme.onSecondary
                 )
-                TextField(value = inputmsg, label = { Text("Message"); }, modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f), onValueChange = { newVal ->
-                    inputmsg = newVal
-                })
-                Icon(
-                    Icons.AutoMirrored.Rounded.Send,
-                    contentDescription = "Send icon",
+                Box(
                     modifier = Modifier
-                        .width(50.dp)
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(end = 8.dp, top = 8.dp, bottom = 8.dp)
                         .height(50.dp)
-                        .padding(10.dp)
-                        .clickable {
-                            //send message
-                            SocketConnection.socket.emit(
-                                "message",
-                                JSONObject("{\"chatID\": $chatID, \"message\": {\"type\": \"text\", \"content\": \"$inputmsg\"}}")
-                            )
-                            inputmsg = "";
-                        },
-                    tint = MaterialTheme.colorScheme.onBackground
-                )
+                        .clip(RoundedCornerShape(50.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                ) {
+                    if (inputmsg == "") {
+                        Text("Message", modifier = Modifier
+                            .padding(start = 10.dp)
+                            .align(Alignment.CenterStart),
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                    BasicTextField(value = inputmsg, modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.CenterStart)
+                        .padding(top = 8.dp, bottom = 8.dp, start = 8.dp),
+                        textStyle = TextStyle(
+                            color = MaterialTheme.colorScheme.onSurface
+                        ),
+                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+
+                        onValueChange = { newVal ->
+                            inputmsg = newVal
+
+                        })
+                    Icon(
+                        Icons.AutoMirrored.Sharp.Send,
+                        contentDescription = "Send icon",
+                        modifier = Modifier
+                            .width(50.dp)
+                            .height(50.dp)
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(50.dp))
+                            .align(Alignment.CenterEnd)
+                            .clickable {
+                                //send message
+                                if (inputmsg.trim() != "") {
+                                    SocketConnection.socket.emit(
+                                        "message",
+                                        JSONObject("{\"chatID\": $chatID, \"message\": {\"type\": \"text\", \"content\": \"${inputmsg.trim()}\"}}")
+                                    )
+                                    inputmsg = "";
+                                }
+                            },
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
 
             }
         }

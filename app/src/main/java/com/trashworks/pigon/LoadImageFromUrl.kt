@@ -1,8 +1,8 @@
 package com.trashworks.pigon
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import androidx.collection.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,17 +20,26 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.Cache
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.io.File
 import java.io.InputStream
 
-// In-memory LRU cache to store images
-val imageCache = LruCache<String, Bitmap>(200 * 1024 * 1024) // 200 MB cache
+
+// Define OkHttp cache directory and size (e.g., 50 MB)
+val cacheSize = 500L * 1024 * 1024 // 500 MB
+
+fun loadImageFromDiskCache(context: Context, url: String): Bitmap? {
+    val file = File(context.cacheDir, url.hashCode().toString())
+    return if (file.exists()) BitmapFactory.decodeFile(file.path) else null
+}
 
 @Composable
 fun LoadImageFromUrl(
@@ -43,26 +52,30 @@ fun LoadImageFromUrl(
 ) {
     var imageBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
+    val context = LocalContext.current.applicationContext
     LaunchedEffect(imageUrl) {
         withContext(Dispatchers.IO) {
-            imageBitmap = imageCache.get(imageUrl);
+
+            imageBitmap = loadImageFromDiskCache(context, imageUrl)
             if (imageBitmap == null) {
                 try {
-                    val client = OkHttpClient()
+                    val cache = Cache(context.cacheDir, cacheSize)
+                    val client = OkHttpClient.Builder().cache(cache).build()
+
                     val reqHeaders =
                         Headers.Builder().set("cookie", APIHandler.getCookies()).build()
-                    val request = Request.Builder().url(imageUrl).headers(reqHeaders).build()
+                    val request = Request.Builder()
+                        .url(imageUrl)
+                        .headers(reqHeaders)
+                        .build()
                     val response = client.newCall(request).execute()
 
                     if (response.isSuccessful) {
                         val inputStream: InputStream? = response.body?.byteStream()
                         val bitmap = BitmapFactory.decodeStream(inputStream)
                         imageBitmap = bitmap
-                        // Cache the image
-                        bitmap?.let {
-                            imageCache.put(imageUrl, it)
-                        }
+
+
                     } else {
                         errorMessage = "Error: Unable to download image"
                     }

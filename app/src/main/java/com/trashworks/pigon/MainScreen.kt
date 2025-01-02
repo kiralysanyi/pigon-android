@@ -212,13 +212,14 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                         .fillMaxSize()
 
                 ) {
-                    Row(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(84.dp)
                             .background(MaterialTheme.colorScheme.tertiaryContainer)
                             .padding(4.dp)
-                            .statusBarsPadding()
+                            .statusBarsPadding(),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(Icons.Rounded.Menu, "Menu icon", modifier = Modifier
                             .height(56.dp)
@@ -229,9 +230,11 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                                         if (isClosed) open() else close()
                                     }
                                 }
-                            },
-                            tint = MaterialTheme.colorScheme.onBackground
+                            }
+                            .align(Alignment.BottomStart),
+                            tint = MaterialTheme.colorScheme.onTertiaryContainer
                         )
+                        Text("Chats", color = MaterialTheme.colorScheme.onTertiaryContainer, fontSize = 25.sp)
                     }
                     LazyColumn(
                         modifier = Modifier
@@ -241,8 +244,8 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                     ) {
                         items(chats) { chat ->
 
-                            var bg = MaterialTheme.colorScheme.background
-                            var color = MaterialTheme.colorScheme.onBackground
+                            var bg = MaterialTheme.colorScheme.secondaryContainer
+                            var color = MaterialTheme.colorScheme.onSecondaryContainer
 
                             if (chat.getBoolean("hasUnreadMessages")) {
                                 bg = MaterialTheme.colorScheme.primaryContainer
@@ -250,23 +253,36 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                             }
                             Row(modifier = Modifier
                                 .fillMaxWidth()
+                                .padding(10.dp)
+                                .clip(RoundedCornerShape(64.dp))
                                 .background(bg)
                                 .clickable {
                                     //open chat
-
                                     navController.navigate(Chat(chatInfo = chat.toString()))
-                                }) {
+                                },
+                                verticalAlignment = Alignment.CenterVertically
+
+
+                            ) {
                                 if (chat.getInt("groupchat") == 0) {
                                     val participants = chat.getJSONArray("participants");
                                     Log.d("Kecske", participants.toString())
                                     val usrID = participants.get(participants.length() - 1);
-                                    LoadImageFromUrl("https://pigon.ddns.net/api/v1/auth/pfp?id=$usrID&smol=true")
+                                    if (participants.length() == 1) {
+                                        LoadImageFromUrl("https://pigon.ddns.net/api/v1/auth/pfp?id=0&smol=true")
+                                    } else {
+                                        LoadImageFromUrl("https://pigon.ddns.net/api/v1/auth/pfp?id=$usrID&smol=true")
+                                    }
+
+                                } else {
+                                    LoadImageFromUrl("https://pigon.ddns.net/api/v1/auth/pfp?id=0&smol=true")
                                 }
 
                                 Text(
-                                    chat.getString("name"),
+                                    text = chat.getString("name"),
                                     color = color,
-                                    modifier = Modifier.padding(16.dp) // Optional: Add padding for spacing
+                                    modifier = Modifier.padding(start = 16.dp), // Optional: Add padding for spacing
+                                    fontSize = 20.sp
                                 )
                             }
 
