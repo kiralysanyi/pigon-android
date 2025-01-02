@@ -31,15 +31,34 @@ class PushNotificationService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
+        Log.d("NotifHandler", "Received data: ${message.data.toString()}")
+
         // Check if message contains a notification payload.
+        var messageID = 0;
+        var isCancelRequest = false;
+        message.data.let { messageID = it["messageID"]?.toInt() ?: 0; isCancelRequest = (it["type"] == "cancel")}
+
+        Log.d("NotifHandler","cancel:$isCancelRequest msgid:$messageID")
+        if (isCancelRequest) {
+            cancelNotification(messageID)
+            return;
+        }
+
         message.messageType?.let { Log.d("Message type", it) }
-        message.notification?.let {
-            Log.d("NotifHandler", "Message Notification Body: ${it.body}")
-            sendNotification(it.title.toString(), it.body.toString())
+        message.data?.let {
+            Log.d("NotifHandler", "Message Notification Body: ${it["body"]}")
+            sendNotification(it["title"].toString(), it["body"].toString(), messageID)
         }
     }
 
-    private fun sendNotification(messageTitle: String, messageBody: String) {
+    private fun cancelNotification(notificationId: Int) {
+        val notificationManager =
+            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        notificationManager.cancel(notificationId)
+    }
+
+    private fun sendNotification(messageTitle: String, messageBody: String, notificationId:Int) {
         val intent = Intent(this, MainActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         val requestCode = 0
@@ -73,7 +92,7 @@ class PushNotificationService : FirebaseMessagingService() {
             notificationManager.createNotificationChannel(channel)
         }
 
-        val notificationId = 0
         notificationManager.notify(notificationId, notificationBuilder.build())
+
     }
 }
