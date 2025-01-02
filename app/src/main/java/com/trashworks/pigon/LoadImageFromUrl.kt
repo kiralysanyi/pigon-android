@@ -3,6 +3,7 @@ package com.trashworks.pigon
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,19 +27,38 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Cache
+import okhttp3.CacheControl
 import okhttp3.Headers
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.io.InputStream
+import java.io.OutputStream
+import java.util.concurrent.TimeUnit
 
-
-// Define OkHttp cache directory and size (e.g., 50 MB)
-val cacheSize = 500L * 1024 * 1024 // 500 MB
 
 fun loadImageFromDiskCache(context: Context, url: String): Bitmap? {
     val file = File(context.cacheDir, url.hashCode().toString())
-    return if (file.exists()) BitmapFactory.decodeFile(file.path) else null
+    if (!file.exists()) {
+        Log.d("Cache","Cache does not exits: ${file.path}")
+        return  null;
+    }
+    val inputStream = FileInputStream(file.path);
+    return BitmapFactory.decodeStream(inputStream);
+}
+
+fun saveImageToDiskCache(context: Context, url: String, inputStream: InputStream) {
+    val file = File(context.cacheDir, url.hashCode().toString())
+    try {
+        val output = FileOutputStream(file)
+        output.write(inputStream.read())
+    } catch (e: Exception) {
+        Log.e("Cache", e.toString())
+    }
 }
 
 @Composable
@@ -50,17 +70,23 @@ fun LoadImageFromUrl(
             RoundedCornerShape(64.dp)
         )
 ) {
+
     var imageBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current.applicationContext
     LaunchedEffect(imageUrl) {
         withContext(Dispatchers.IO) {
 
+
             imageBitmap = loadImageFromDiskCache(context, imageUrl)
+
             if (imageBitmap == null) {
                 try {
-                    val cache = Cache(context.cacheDir, cacheSize)
-                    val client = OkHttpClient.Builder().cache(cache).build()
+
+
+                    val client = OkHttpClient.Builder()
+
+                        .build()
 
                     val reqHeaders =
                         Headers.Builder().set("cookie", APIHandler.getCookies()).build()
@@ -72,7 +98,11 @@ fun LoadImageFromUrl(
 
                     if (response.isSuccessful) {
                         val inputStream: InputStream? = response.body?.byteStream()
+
                         val bitmap = BitmapFactory.decodeStream(inputStream)
+                        if (inputStream != null) {
+                            saveImageToDiskCache(context, imageUrl, inputStream)
+                        }
                         imageBitmap = bitmap
 
 
