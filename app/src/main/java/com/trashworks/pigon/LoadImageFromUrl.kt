@@ -33,29 +33,96 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import java.io.BufferedOutputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.time.Duration
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
 
-fun loadImageFromDiskCache(context: Context, url: String): Bitmap? {
-    val file = File(context.cacheDir, url.hashCode().toString())
-    if (!file.exists()) {
-        Log.d("Cache","Cache does not exits: ${file.path}")
-        return  null;
-    }
-    val inputStream = FileInputStream(file.path);
-    return BitmapFactory.decodeStream(inputStream);
+fun getCurrentDateTime(): String {
+    val currentDateTime = LocalDateTime.now()
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+    return currentDateTime.format(formatter)
 }
 
-fun saveImageToDiskCache(context: Context, url: String, inputStream: InputStream) {
+fun parseDateFromString(dateString: String): LocalDateTime {
+    // Define the format of the input string
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+    // Parse the string into a LocalDateTime object
+    return LocalDateTime.parse(dateString, formatter)
+}
+
+fun timePassed(dateTime1: String, dateTime2: String): Duration {
+    // Define the format of the date strings
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+
+    // Parse the date-time strings into LocalDateTime objects
+    val parsedDateTime1 = LocalDateTime.parse(dateTime1, formatter)
+    val parsedDateTime2 = LocalDateTime.parse(dateTime2, formatter)
+
+    // Calculate the duration between the two dates
+    val duration = Duration.between(parsedDateTime1, parsedDateTime2)
+
+    // Build the human-readable string
+    return duration;
+}
+
+fun loadImageFromDiskCache(context: Context, url: String): Bitmap? {
+    val cacheUpdateStoreFile = File(context.cacheDir, "cachedate")
+    val file = File(context.cacheDir, url.hashCode().toString())
+    if (url.contains("/api/v1/auth/pfp") && file.exists() && cacheUpdateStoreFile.exists()) {
+        val lastUpdate = cacheUpdateStoreFile.readText()
+        val duration = timePassed(lastUpdate, getCurrentDateTime())
+        if (duration.toHours() > 1) {
+            Log.d("Cache", "cache expired: ${file.name}")
+            file.delete()
+            return null;
+        }
+    }
+
+    if (!cacheUpdateStoreFile.exists() && file.exists()) {
+        file.delete()
+        return null
+    }
+
+    if (!file.exists()) {
+        return null;
+    }
+
+    val bitmap = BitmapFactory.decodeFile(file.path);
+    if (bitmap == null) {
+        file.delete()
+        Log.e("Cache", "Cahce error: decodeFile returned null for ${file.path}")
+    }
+    return bitmap;
+}
+
+
+fun saveImageToDiskCache(context: Context, url: String, bitmap: Bitmap) {
+
     val file = File(context.cacheDir, url.hashCode().toString())
     try {
-        val output = FileOutputStream(file)
-        output.write(inputStream.read())
+        if (!file.exists()) {
+            if (url.contains("/api/v1/auth/pfp")) {
+                val cacheUpdateStoreFile = File(context.cacheDir, "cachedate")
+                cacheUpdateStoreFile.writeText(getCurrentDateTime())
+            }
+
+            val fileOutputStream = FileOutputStream(file);
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fileOutputStream)
+            fileOutputStream.close();
+        } else {
+            Log.d("Cache", "Cache file exists aborting saving")
+        }
+
+
     } catch (e: Exception) {
         Log.e("Cache", e.toString())
     }
@@ -101,11 +168,14 @@ fun LoadImageFromUrl(
 
                         val bitmap = BitmapFactory.decodeStream(inputStream)
                         if (inputStream != null) {
-                            saveImageToDiskCache(context, imageUrl, inputStream)
+                            when {
+                                bitmap != null -> {
+                                    saveImageToDiskCache(context, imageUrl, bitmap)
+                                }
+                            }
                         }
                         imageBitmap = bitmap
-
-
+                        inputStream?.close()
                     } else {
                         errorMessage = "Error: Unable to download image"
                     }
