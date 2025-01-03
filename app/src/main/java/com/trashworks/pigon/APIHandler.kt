@@ -253,6 +253,67 @@ object APIHandler {
         }
     }
 
+    fun searchUsers(onResult: (ReturnObject) -> Unit, query: String) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        try {
+            val request = Request.Builder()
+                .url("$uri/api/v1/auth/search?search=$query")
+                .headers(requestHeaders)
+                .get()
+                .build()
+
+            GlobalScope.launch(Dispatchers.IO) {
+                val response = client.newCall(request).execute()
+                val stringResponse = response.body?.string()
+                val jsonResponse = JSONObject(stringResponse)
+
+                onResult(ReturnObject(jsonResponse.getBoolean("success"), jsonResponse.getString("message"), dataArray = JSONArray(jsonResponse.getString("data"))))
+            }
+
+        } catch (e: Exception) {
+            Log.e("User search", e.toString())
+        }
+    }
+
+    fun newChat(onResult: (ReturnObject) -> Unit, participants: JSONArray, isGroupChat: Boolean, chatName: String? = null) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        val body = JSONObject();
+        body.put("isGroupChat", isGroupChat);
+        if (isGroupChat && chatName != null) {
+            body.put("chatName", chatName)
+        }
+
+        body.put("participants", participants)
+
+        val request = Request.Builder()
+            .url("$uri/api/v1/chat/create")
+            .headers(requestHeaders)
+            .post(body.toString().toRequestBody())
+            .build()
+
+        try {
+            GlobalScope.launch(Dispatchers.IO) {
+                val response = client.newCall(request).execute()
+                val stringResponse = response.body?.string()
+                val jsonResponse = JSONObject(stringResponse)
+                onResult(ReturnObject(jsonResponse.getBoolean("success"), jsonResponse.getString("message")))
+            }
+        } catch (e: Exception) {
+            Log.e("Create chat", e.toString())
+            onResult(ReturnObject(false, e.toString()))
+        }
+
+
+    }
+
     fun getChallenge(onResult: (String?) -> Unit) {
         GlobalScope.launch(Dispatchers.IO) {
             val request = Request.Builder()

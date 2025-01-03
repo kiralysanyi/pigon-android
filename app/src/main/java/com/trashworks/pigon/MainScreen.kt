@@ -204,6 +204,20 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                                 navController.navigate("devices_screen")
                             }
                         )
+                        NavigationDrawerItem(
+                            label = { Text(text = "New Chat") },
+                            selected = false,
+                            onClick = {
+                                navController.navigate("newchat_screen")
+                            }
+                        )
+                        NavigationDrawerItem(
+                            label = { Text(text = "New Group Chat") },
+                            selected = false,
+                            onClick = {
+
+                            }
+                        )
                     }
                 },
             ) {

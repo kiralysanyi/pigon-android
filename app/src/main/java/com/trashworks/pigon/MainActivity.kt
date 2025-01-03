@@ -164,6 +164,10 @@ fun PigonAppNavGraph(activityContext: Context) {
             OfflineScreen(navController)
         }
 
+        composable("newchat_screen") {
+            NewChatScreen(navController)
+        }
+
         composable(
             route = "main_screen"
         ) {
