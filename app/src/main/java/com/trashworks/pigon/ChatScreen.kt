@@ -67,6 +67,10 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
+fun decodeHTML(html: String): String {
+    return android.text.Html.fromHtml(html, android.text.Html.FROM_HTML_MODE_LEGACY).toString()
+}
+
 @Composable
 fun ChatScreen(navController: NavController, chatInfo: String) {
     val chatJson = JSONObject(chatInfo)
@@ -404,7 +408,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
 
                                 if (msgData.getString("type") == "text") {
                                     Text(
-                                        msgData.getString("content"),
+                                        decodeHTML(msgData.getString("content")),
                                         color = color,
                                         modifier = Modifier.padding(16.dp)
                                     )
@@ -484,7 +488,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                     BasicTextField(value = inputmsg, modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.CenterStart)
-                        .padding(top = 8.dp, bottom = 8.dp, start = 8.dp),
+                        .padding(top = 8.dp, bottom = 8.dp, start = 8.dp, end = 66.dp),
                         textStyle = TextStyle(
                             color = MaterialTheme.colorScheme.onSurface
                         ),

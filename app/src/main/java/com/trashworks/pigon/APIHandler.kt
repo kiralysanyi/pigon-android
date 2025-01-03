@@ -107,6 +107,8 @@ object APIHandler {
 
     }
 
+
+
     suspend fun removeDevice(deviceID: String, onResult: (ReturnObject) -> Unit) {
         if (!isLoggedIn) {
             onResult(ReturnObject(false, "You have to log in first."));
@@ -249,6 +251,58 @@ object APIHandler {
                 }
             }
         }
+    }
+
+    fun getChallenge(onResult: (String?) -> Unit) {
+        GlobalScope.launch(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url("$uri/api/v1/auth/webauthn/challenge")
+                .headers(requestHeaders)
+                .get()
+                .build()
+
+            try {
+                val response = client.newCall(request).execute()
+                onResult(response.body?.string()?.let { JSONObject(it).getString("challenge") })
+            } catch (e: Exception) {
+                Log.e("challenge", e.toString())
+            }
+
+        }
+    }
+
+    fun authWebauthn(payload: String, challenge: String, onResult: (ReturnObject) -> Unit) {
+        val body = JSONObject();
+        body.put("deviceName", "${Build.BRAND} ${Build.MODEL}")
+        body.put("challenge", challenge)
+        body.put("authentication", JSONObject(payload))
+
+
+        val request = Request.Builder()
+            .url("$uri/api/v1/auth/webauthn/auth")
+            .headers(requestHeaders)
+            .post(body.toString().toRequestBody())
+            .build()
+
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                val response = client.newCall(request).execute()
+                if (response.headers["Set-Cookie"] != null) {
+                    cookies = response.headers["Set-Cookie"].toString()
+                }
+                val stringResponse = response.body?.string()
+                Log.d("Webauthn", stringResponse.toString())
+                val jsonResponse = JSONObject(stringResponse)
+                onResult(ReturnObject(jsonResponse.getBoolean("success"), jsonResponse.getString("message")))
+            } catch (e: Exception) {
+                Log.e("Webauthn", e.toString())
+                onResult(ReturnObject(false, e.toString()));
+            }
+
+
+
+        }
+
     }
 
     suspend fun getMessages(chatID: Int, page: Int = 1, onResult: (ReturnObject) -> Unit) {

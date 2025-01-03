@@ -110,13 +110,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        val activityContext = this;
 
 
         setContent {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 RequestNotificationPermission(LocalContext.current, this)
             }
-            PigonAppNavGraph()
+            PigonAppNavGraph(activityContext)
         }
     }
 }
@@ -136,11 +137,11 @@ fun RequestNotificationPermission(context: Context, activity: MainActivity) {
 data class Chat(val chatInfo: String)
 
 @Composable
-fun PigonAppNavGraph() {
+fun PigonAppNavGraph(activityContext: Context) {
 
     val dsWrapper = DataStoreWrapper(context = LocalContext.current.applicationContext)
     val navController = rememberNavController()
-
+    val context = LocalContext.current
 
 
     NavHost(
@@ -152,7 +153,7 @@ fun PigonAppNavGraph() {
             LoadingScreen(navController = navController, dsWrapper)
         }
         composable("login_screen") {
-            LoginScreen(navController = navController, dsWrapper)
+            LoginScreen(navController = navController, dsWrapper, context, activityContext)
         }
 
         composable("devices_screen") {
@@ -180,86 +181,6 @@ fun PigonAppNavGraph() {
 }
 
 
-
-
-@Composable
-fun LoginScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
-    var username by remember {
-        mutableStateOf("")
-    }
-
-    var password by remember {
-        mutableStateOf("")
-    }
-
-    var isLoading by remember {
-        mutableStateOf(false)
-    }
-
-    var dasMessage by remember {
-        mutableStateOf("Welcome to pigon!")
-    }
-
-    val coroutineScope = rememberCoroutineScope();
-
-
-    PigonTheme {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-
-            Text(
-                dasMessage,
-                color = MaterialTheme.colorScheme.onBackground,
-                textAlign = TextAlign.Center
-            )
-
-            TextField(value = username, label = { Text("Username"); }, onValueChange = { newVal ->
-                username = newVal
-            })
-
-
-            TextField(
-                value = password,
-                label = { Text("Password"); },
-                visualTransformation = PasswordVisualTransformation(),
-                singleLine = true,
-                onValueChange = { newVal ->
-                    password = newVal
-                })
-
-            Button(onClick = {
-                isLoading = true;
-                APIHandler.login(username, password, onResult = { res ->
-                    if (res.success == true) {
-                        coroutineScope.launch {
-                            dsWrapper.saveString(APIHandler.getCookies())
-                        }
-                        navController.navigate("main_screen")
-                    } else {
-                        dasMessage = res.message;
-                    }
-
-                    isLoading = false;
-
-                })
-
-            }) {
-                if (isLoading == true) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
-                } else {
-                    Text("Login")
-                }
-
-            }
-        }
-
-    }
-}
 
 @Composable
 fun LoadingScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
