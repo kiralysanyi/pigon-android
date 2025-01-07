@@ -197,7 +197,6 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
             APIHandler.getUserInfo { res ->
                 if (!res.success) {
                     navController.navigate("loading_screen");
-
                 } else {
                     userInfo = res.data.getJSONObject("data");
                     Log.d("UserInfo", userInfo.toString())

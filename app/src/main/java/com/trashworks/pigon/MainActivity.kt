@@ -168,6 +168,10 @@ fun PigonAppNavGraph(activityContext: Context) {
             NewChatScreen(navController)
         }
 
+        composable("newgroup_screen") {
+            NewGroupScreen(navController)
+        }
+
         composable(
             route = "main_screen"
         ) {

@@ -215,7 +215,7 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                             label = { Text(text = "New Group Chat") },
                             selected = false,
                             onClick = {
-
+                                navController.navigate("newgroup_screen")
                             }
                         )
                     }
