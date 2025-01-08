@@ -142,6 +142,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
             msgData.remove("senderID");
             Log.d("msgdata", msgData.toString() + "Chatid: $chatID");
             if (msgData.getInt("chatID") == chatID) {
+                SocketConnection.socket.emit("setLastRead", JSONObject("""{"chatID": $chatID, messageID: ${msgData.getInt("messageID")}}"""))
                 //add message to messages;
                 messages = listOf(msgData) + messages
                 Log.d("AAAAAAAAAAAAAA", messages.toString())
