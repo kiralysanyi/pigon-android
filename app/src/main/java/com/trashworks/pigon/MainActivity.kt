@@ -136,6 +136,9 @@ fun RequestNotificationPermission(context: Context, activity: MainActivity) {
 @Serializable
 data class Chat(val chatInfo: String)
 
+@Serializable
+data class Group(val chatInfo: String? = null)
+
 @Composable
 fun PigonAppNavGraph(activityContext: Context) {
 
@@ -168,8 +171,9 @@ fun PigonAppNavGraph(activityContext: Context) {
             NewChatScreen(navController)
         }
 
-        composable("newgroup_screen") {
-            NewGroupScreen(navController)
+        composable<Group> { backStackEntry ->
+            val group: Group = backStackEntry.toRoute()
+            NewGroupScreen(navController, group.chatInfo)
         }
 
         composable(
@@ -192,13 +196,23 @@ fun PigonAppNavGraph(activityContext: Context) {
 
 @Composable
 fun LoadingScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
+    val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
         if (dsWrapper.hasString()) {
             val cookies = dsWrapper.getString();
             if (cookies != null) {
                 Log.d("Setcookie", "setting cookies")
                 APIHandler.setCookies(cookies)
-                navController.navigate("main_screen")
+                scope.launch {
+                    APIHandler.getUserInfo { res ->
+                        if (!res.success) {
+                            navController.navigate("login_screen")
+                        } else {
+                            navController.navigate("main_screen")
+                        }
+                    }
+                }
+
             } else {
                 navController.navigate("login_screen")
             }

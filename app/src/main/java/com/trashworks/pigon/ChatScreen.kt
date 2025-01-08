@@ -1,5 +1,6 @@
 package com.trashworks.pigon
 
+import android.text.Html
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -30,10 +31,12 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.automirrored.sharp.Send
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +48,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -65,14 +69,16 @@ import com.trashworks.pigon.ui.theme.PigonTheme
 import io.socket.emitter.Emitter
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
 
 fun decodeHTML(html: String): String {
-    return android.text.Html.fromHtml(html, android.text.Html.FROM_HTML_MODE_LEGACY).toString()
+    return Html.fromHtml(html, Html.FROM_HTML_MODE_LEGACY).toString()
 }
 
 @Composable
 fun ChatScreen(navController: NavController, chatInfo: String) {
+    Log.d("Chatinfo", chatInfo)
     val chatJson = JSONObject(chatInfo)
     val chatID = chatJson.getInt("chatid");
     var userInfo by remember {
@@ -81,6 +87,14 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
 
     var userInfoLoaded by remember {
         mutableStateOf(false);
+    }
+
+    var showEditButton by remember { mutableStateOf(false) }
+
+    if (userInfoLoaded) {
+        if (userInfo.getInt("id") == chatJson.getInt("initiator") && chatJson.getInt("groupchat") == 1) {
+            showEditButton = true;
+        }
     }
 
     var messagesLoaded by remember {
@@ -149,7 +163,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
         mutableStateOf(false)
     }
 
-    val systemUiController = rememberSystemUiController();
+    var openEditModal by remember { mutableStateOf(false) }
 
 
     val context = LocalContext.current.applicationContext;
@@ -252,7 +266,11 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
         }
 
     PigonTheme {
-        Column(modifier = Modifier.fillMaxSize().imePadding()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding()
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -311,6 +329,23 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
 
                         )
                     }
+                }
+
+                if (showEditButton) {
+                    Icon(
+                        Icons.Default.Edit,
+                        "Edit group",
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .height(45.dp)
+                            .padding(5.dp)
+                            .width(45.dp)
+                            .clickable {
+                                //open group editing thing
+                                openEditModal = true;
+                            }
+                    )
                 }
 
 
@@ -478,9 +513,10 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                 ) {
                     if (inputmsg == "") {
-                        Text("Message", modifier = Modifier
-                            .padding(start = 10.dp)
-                            .align(Alignment.CenterStart),
+                        Text(
+                            "Message", modifier = Modifier
+                                .padding(start = 10.dp)
+                                .align(Alignment.CenterStart),
                             color = MaterialTheme.colorScheme.secondary
                         )
                     }
@@ -582,5 +618,118 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                 )
             }
         }
+
+        if (openEditModal) {
+            EditModal(chatJson, closeCallback = { openEditModal = false }, navController)
+        }
+    }
+}
+
+@Composable
+fun EditModal(chatJson: JSONObject, closeCallback: () -> Unit, navController: NavController) {
+    var participants = remember { mutableStateListOf<JSONObject>() }
+    var scope = rememberCoroutineScope()
+
+
+    LaunchedEffect("") {
+        val users = JSONArray(chatJson.getString("participants"))
+        for (i in 0..<users.length()) {
+            scope.launch {
+                APIHandler.getUserInfo(users.getInt(i)) { res ->
+                    val data = res.data.getJSONObject("data");
+                    data.put("id", users[i]);
+                    participants.add(data);
+                }
+            }
+        }
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
+        Icon(
+            Icons.Rounded.Close, "Close editor", modifier = Modifier
+                .width(64.dp)
+                .height(64.dp)
+                .clickable {
+                    closeCallback()
+                },
+            tint = MaterialTheme.colorScheme.onBackground
+        )
+
+        Text(
+            chatJson.getString("name"),
+            modifier = Modifier.align(Alignment.TopCenter),
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 20.sp
+        )
+
+        LazyColumn(
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+                .align(Alignment.Center)
+                .padding(10.dp)
+                .fillMaxWidth()
+
+        ) {
+            items(participants) { participant ->
+                Row(
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    LoadImageFromUrl(
+                        "https://pigon.ddns.net/api/v1/auth/pfp?id=${
+                            participant.getInt(
+                                "id"
+                            )
+                        }"
+                    )
+                    Text(
+                        participant.getString("username"),
+                        color = MaterialTheme.colorScheme.onSurface
+                    );
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+        ) {
+            Button(
+                onClick = {
+                    //adduser
+                    navController.navigate(Group(chatInfo = chatJson.toString()))
+                },
+                modifier = Modifier
+                    .padding(8.dp)
+            )
+            {
+                Text("Add/Remove participants")
+            }
+
+            Button(
+                onClick = {
+                    //delete group
+                }, colors = ButtonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    disabledContentColor = MaterialTheme.colorScheme.onSurface
+                ),
+                modifier = Modifier
+                    .padding(8.dp)
+            ) {
+                Text("Delete group")
+            }
+        }
+
+
     }
 }

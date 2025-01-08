@@ -150,16 +150,92 @@ object APIHandler {
         }
     }
 
-    suspend fun getUserInfo(onResult: suspend (ReturnObject) -> Unit) {
+    fun addUser(userIDs: List<Int>, chatID: Int, onResult: (ReturnObject) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        GlobalScope.launch(Dispatchers.IO) {
+            val body = """
+                {
+                    "chatid": $chatID,
+                    "targetids": [${userIDs.joinToString(",")}]
+                }
+            """.trimIndent().toRequestBody()
+            val request = Request.Builder()
+                .url("$uri/api/v1/chat/groupuser")
+                .headers(requestHeaders)
+                .post(body)
+                .build()
+
+            try {
+                val response = client.newCall(request).execute()
+                val responseJson = JSONObject(response.body?.string());
+                if (responseJson.getBoolean("success")) {
+                    onResult(ReturnObject(true, "Applied changes"))
+                } else {
+                    onResult(ReturnObject(false, responseJson.getString("message")))
+                }
+            } catch (e: Exception) {
+                onResult(ReturnObject(false, e.toString()))
+            }
+
+
+
+        }
+    }
+
+    fun removeUser(userID: Int, chatID: Int, onResult: (ReturnObject) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        GlobalScope.launch(Dispatchers.IO) {
+            val body = """
+                {
+                    "chatid": $chatID,
+                    "targetid": $userID
+                }
+            """.trimIndent().toRequestBody()
+            val request = Request.Builder()
+                .url("$uri/api/v1/chat/groupuser")
+                .headers(requestHeaders)
+                .delete(body)
+                .build()
+
+            try {
+                val response = client.newCall(request).execute()
+                val responseJson = JSONObject(response.body?.string());
+                if (responseJson.getBoolean("success")) {
+                    onResult(ReturnObject(true, "Applied changes"))
+                } else {
+                    onResult(ReturnObject(false, responseJson.getString("message")))
+                }
+            } catch (e: Exception) {
+                onResult(ReturnObject(false, e.toString()))
+            }
+
+
+
+        }
+    }
+
+    suspend fun getUserInfo(userID: Int? = null, onResult: suspend (ReturnObject) -> Unit) {
         if (!isLoggedIn) {
             onResult(ReturnObject(false, "You have to log in first."));
             return;
         }
 
         // Launch a coroutine on the IO thread to make the network request
+        var url = "$uri/api/v1/auth/userinfo"
+        if (userID != null) {
+            url = "$uri/api/v1/auth/userinfo?userID=$userID"
+        }
         GlobalScope.launch(Dispatchers.IO) {
             val request = Request.Builder()
-                .url("$uri/api/v1/auth/userinfo")
+                .url(url)
                 .headers(requestHeaders)
                 .get()
                 .build()

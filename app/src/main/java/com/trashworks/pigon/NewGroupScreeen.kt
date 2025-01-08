@@ -45,14 +45,17 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 @Composable
-fun NewGroupScreen(navController: NavController) {
+fun NewGroupScreen(navController: NavController, chatInfo: String? = null) {
     var searchQuery by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf(JSONArray()) }
     val scope = rememberCoroutineScope()
-    var participants = remember { mutableStateListOf<String>() };
+    val participants = remember { mutableStateListOf<String>() };
     var userData by remember { mutableStateOf(JSONObject()) }
     var gotUserData by remember { mutableStateOf(false) }
     var openNameDialog by remember { mutableStateOf(false) }
+    var participantsJson by remember { mutableStateOf(JSONArray()) }
+    val addedUsers = remember { mutableStateListOf<Int>() }
+    val removedUsers = remember { mutableStateListOf<Int>() }
 
     var groupname by remember { mutableStateOf("") }
     LaunchedEffect("") {
@@ -61,6 +64,24 @@ fun NewGroupScreen(navController: NavController) {
                 userData = res.data.getJSONObject("data")
                 gotUserData = true;
 
+            }
+        }
+
+        if (chatInfo != null) {
+            //open existing group info
+            val chatJson = JSONObject(chatInfo);
+            groupname = chatJson.getString("name");
+
+            participantsJson = JSONArray(chatJson.getString("participants"))
+
+            for (i in 0..<participantsJson.length()) {
+                scope.launch {
+                    APIHandler.getUserInfo(participantsJson.getInt(i)) { res ->
+                        val data = res.data.getJSONObject("data");
+                        data.put("id", participantsJson.getInt(i))
+                        participants.add(data.toString());
+                    }
+                }
             }
         }
     }
@@ -102,14 +123,77 @@ fun NewGroupScreen(navController: NavController) {
 
                 val isButtonEnabled = participants.isNotEmpty()
 
-                Button(
-                    modifier = Modifier.align(Alignment.BottomEnd),
-                    enabled = isButtonEnabled,
-                    onClick = {
-                        //create group
-                        openNameDialog = true;
-                    }) {
-                    Text("Create")
+                if (chatInfo == null) {
+                    Button(
+                        modifier = Modifier.align(Alignment.BottomEnd),
+                        enabled = isButtonEnabled,
+                        onClick = {
+                            //create group
+                            openNameDialog = true;
+                        }) {
+                        Text("Create")
+                    }
+                } else {
+                    Button(
+                        modifier = Modifier.align(Alignment.BottomEnd),
+                        enabled = true,
+                        onClick = {
+                            val chatJson = JSONObject(chatInfo)
+                            //apply changes
+                            Log.d("Added: ", addedUsers.joinToString(","))
+                            Log.d("Removed: ", removedUsers.joinToString(","))
+
+                            scope.launch {
+                                if (addedUsers.count() > 0) {
+                                    APIHandler.addUser(addedUsers.toList(), chatJson.getInt("chatid")) {res ->
+                                        Log.d("AAAAAA", res.message)
+                                        if (res.success) {
+                                            if (removedUsers.count() > 0) {
+                                                for (i in removedUsers) {
+                                                    scope.launch {
+                                                        APIHandler.removeUser(i, chatJson.getInt("chatid")) { res ->
+                                                            Log.d("AAAAAAA", res.message)
+                                                            if (res.success) {
+                                                               scope.launch(Dispatchers.Main) {
+                                                                   navController.navigate("main_screen")
+                                                               }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                scope.launch(Dispatchers.Main) {
+                                                    navController.navigate("main_screen")
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    if (removedUsers.count() > 0) {
+                                        for (i in removedUsers) {
+                                            scope.launch {
+                                                Log.d("lllllllll", chatJson.toString())
+                                                APIHandler.removeUser(i, chatJson.getInt("chatid")) { res ->
+                                                    Log.d("AAAAAAA", res.message)
+                                                    if (res.success) {
+                                                        scope.launch(Dispatchers.Main) {
+                                                            navController.navigate("main_screen")
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        scope.launch(Dispatchers.Main) {
+                                            navController.navigate("main_screen")
+                                        }
+                                    }
+                                }
+
+                            }
+                        }) {
+                        Text("Apply")
+                    }
                 }
             }
             //added users
@@ -144,27 +228,38 @@ fun NewGroupScreen(navController: NavController) {
                     }
                 }
                 items(participants.count()) { i ->
-                    val participant = JSONObject(participants.get(i));
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier
-                        .padding(8.dp)
-                        .background(MaterialTheme.colorScheme.secondaryContainer)
-                        .clickable {
-                            participants.removeAt(i)
+                    val participant = JSONObject(participants[i]);
+                    if (participant.getInt("id") != userData.getInt("id")) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier
+                            .padding(8.dp)
+                            .background(MaterialTheme.colorScheme.secondaryContainer)
+                            .clickable {
+                                participants.removeAt(i)
+                                if (chatInfo != null) {
+                                    if (addedUsers.contains(participant.getInt("id"))) {
+                                        addedUsers.remove(participant.getInt("id"))
+                                    } else {
+                                        removedUsers.add(participant.getInt("id"))
+                                    }
+
+                                }
+                            }
+                        ) {
+                            Text(
+                                modifier = Modifier.padding(start = 8.dp, end = 8.dp),
+                                text = participant.getString("username"),
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                            LoadImageFromUrl(
+                                "https://pigon.ddns.net/api/v1/auth/pfp?id=${
+                                    participant.getInt(
+                                        "id"
+                                    )
+                                }"
+                            )
                         }
-                    ) {
-                        Text(
-                            modifier = Modifier.padding(start = 8.dp, end = 8.dp),
-                            text = participant.getString("username"),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
-                        )
-                        LoadImageFromUrl(
-                            "https://pigon.ddns.net/api/v1/auth/pfp?id=${
-                                participant.getInt(
-                                    "id"
-                                )
-                            }"
-                        )
                     }
+
                 }
             }
             Row(
@@ -215,6 +310,12 @@ fun NewGroupScreen(navController: NavController) {
                                         )
                                     ) {
                                         participants.add(result.toString())
+
+                                        if (removedUsers.contains(result.getInt("id"))) {
+                                            removedUsers.remove(result.getInt("id"));
+                                        } else {
+                                            addedUsers.add(result.getInt("id"))
+                                        }
                                     }
 
                                 }
@@ -280,8 +381,9 @@ fun NewGroupScreen(navController: NavController) {
                             )
                         ) { Text("Cancel") }
 
-                        Button(modifier = Modifier
-                            .align(Alignment.BottomEnd),
+                        Button(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd),
                             onClick = {
                                 //add
                                 scope.launch {
@@ -290,15 +392,19 @@ fun NewGroupScreen(navController: NavController) {
                                     for (participant in participants) {
                                         users.put(JSONObject(participant).getInt("id"))
                                     }
-                                    APIHandler.newChat(isGroupChat = true, chatName = groupname, participants = users, onResult = {res ->
-                                        if (res.success) {
-                                           scope.launch(Dispatchers.Main) {
-                                               navController.navigate("main_screen");
-                                           }
-                                        } else {
-                                            Log.e("New group", res.message)
-                                        }
-                                    })
+                                    APIHandler.newChat(
+                                        isGroupChat = true,
+                                        chatName = groupname,
+                                        participants = users,
+                                        onResult = { res ->
+                                            if (res.success) {
+                                                scope.launch(Dispatchers.Main) {
+                                                    navController.navigate("main_screen");
+                                                }
+                                            } else {
+                                                Log.e("New group", res.message)
+                                            }
+                                        })
                                 }
                             },
                             enabled = groupname.isNotEmpty()
@@ -308,4 +414,13 @@ fun NewGroupScreen(navController: NavController) {
             }
         }
     }
+}
+
+fun containsValue(jsonArray: JSONArray, value: Any): Boolean {
+    for (i in 0 until jsonArray.length()) {
+        if (jsonArray.get(i) == value) {
+            return true
+        }
+    }
+    return false
 }
