@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -109,15 +110,15 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
+
         super.onCreate(savedInstanceState)
         val activityContext = this;
-
 
         setContent {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 RequestNotificationPermission(LocalContext.current, this)
             }
-            PigonAppNavGraph(activityContext)
+            PigonAppNavGraph(activityContext, this)
         }
     }
 }
@@ -139,8 +140,11 @@ data class Chat(val chatInfo: String)
 @Serializable
 data class Group(val chatInfo: String? = null)
 
+@Serializable
+data class Call(val callInfo: String, val isInitiator: Boolean = false)
+
 @Composable
-fun PigonAppNavGraph(activityContext: Context) {
+fun PigonAppNavGraph(activityContext: Context, activity: MainActivity) {
 
     val dsWrapper = DataStoreWrapper(context = LocalContext.current.applicationContext)
     val navController = rememberNavController()
@@ -171,6 +175,16 @@ fun PigonAppNavGraph(activityContext: Context) {
             NewChatScreen(navController)
         }
 
+        composable<Call> { backStackEntry ->
+            BackHandler(true) {
+                //do nothing bruh
+            }
+            ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.RECORD_AUDIO), 1)
+            val call: Call = backStackEntry.toRoute()
+            CallScreen(navController, call.callInfo, call.isInitiator)
+
+        }
+
         composable<Group> { backStackEntry ->
             val group: Group = backStackEntry.toRoute()
             NewGroupScreen(navController, group.chatInfo)
@@ -179,6 +193,9 @@ fun PigonAppNavGraph(activityContext: Context) {
         composable(
             route = "main_screen"
         ) {
+            BackHandler(true) {
+                //do nothing bruh
+            }
             MainScreen(navController = navController, dsWrapper)
         }
 
@@ -208,6 +225,9 @@ fun LoadingScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                         if (!res.success) {
                             navController.navigate("login_screen")
                         } else {
+                            if (!SocketConnection.initialized) {
+                                SocketConnection.init(navController)
+                            }
                             navController.navigate("main_screen")
                         }
                     }

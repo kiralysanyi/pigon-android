@@ -108,6 +108,27 @@ object APIHandler {
     }
 
 
+    fun prepareCall(chatid: Int, onResult: (ReturnObject) -> Unit) {
+        val request = Request.Builder()
+            .url("$uri/api/v1/chat/prepareCall")
+            .headers(requestHeaders)
+            .post("""{"chatid": $chatid}""".toRequestBody())
+            .build()
+
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                val response = client.newCall(request).execute()
+                val responseJson = JSONObject(response.body?.string())
+                Log.d("PrepareCall", responseJson.toString())
+                onResult(ReturnObject(responseJson.getBoolean("succes"), responseJson.getString("message"), responseJson.getJSONObject("data")))
+            } catch (e: Exception) {
+                Log.e("PrepareCall", e.toString())
+                onResult(ReturnObject(false, e.toString()))
+            }
+
+
+        }
+    }
 
     suspend fun removeDevice(deviceID: String, onResult: (ReturnObject) -> Unit) {
         if (!isLoggedIn) {
@@ -269,6 +290,23 @@ object APIHandler {
                 // Handle error and send failure result
                 withContext(Dispatchers.Main) {
                     onResult(ReturnObject(false, "Error: ${e.message}"))
+                }
+            }
+        }
+    }
+
+    fun getDeviceId(onResult: (String) -> Unit) {
+        GlobalScope.launch(Dispatchers.IO) {
+            getDevices { res ->
+                if (res.success) {
+                    for (i in 0..<res.dataArray.length()) {
+                        if (res.dataArray.getJSONObject(i).getBoolean("current")) {
+                            GlobalScope.launch(Dispatchers.Main) {
+                                onResult(res.dataArray.getJSONObject(i).getString("deviceID"))
+                            }
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -524,6 +562,56 @@ object APIHandler {
         return file
     }
 
+    fun registerPeer(callid: String, onResult: (ReturnObject) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        val request = Request.Builder()
+            .url("$uri/api/v1/chat/registerPeer")
+            .headers(requestHeaders)
+            .post("""{"callid": "$callid"}""".toRequestBody())
+            .build()
+
+        try {
+            GlobalScope.launch(Dispatchers.IO) {
+                val response = client.newCall(request).execute()
+                val responseJson = JSONObject(response.body?.string())
+                onResult(ReturnObject(responseJson.getBoolean("success"), responseJson.getString("message")))
+            }
+        } catch (e: Exception) {
+            Log.e("RegisterPeer", e.toString())
+            onResult(ReturnObject(false, e.toString()))
+        }
+    }
+
+    fun getPeers(callid: String, onResult: (ReturnObject) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        val request = Request.Builder()
+            .headers(requestHeaders)
+            .url("$uri/api/v1/chat/getPeerIDs?callid=$callid")
+            .get()
+            .build()
+
+        try {
+            GlobalScope.launch(Dispatchers.IO) {
+                val result = client.newCall(request).execute()
+                val resultJson = JSONObject(result.body?.string())
+                GlobalScope.launch(Dispatchers.Main) {
+                    onResult(ReturnObject(resultJson.getBoolean("success"), "", resultJson.getJSONObject("data")))
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("getPeers", e.toString())
+            onResult(ReturnObject(false, e.toString()))
+        }
+    }
+
     suspend fun logout(dsWrapper: DataStoreWrapper, onResult: (Boolean) -> Unit) {
         if (!isLoggedIn) {
             onResult(false);
@@ -622,9 +710,6 @@ object APIHandler {
     }
 
     suspend fun getChats(onResult: (ReturnObject) -> Unit) {
-        if (!SocketConnection.initialized) {
-            SocketConnection.init()
-        }
         if (!isLoggedIn) {
             onResult(ReturnObject(false, "You have to log in first."));
             return;

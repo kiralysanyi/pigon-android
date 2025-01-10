@@ -28,6 +28,7 @@ media3Datasource = "1.5.1"
 accompanistSystemuicontroller = "0.36.0"
 credentials = "1.5.0-beta01"
 credentialsPlayServicesAuth = "1.5.0-beta01"
+transportApi = "3.0.0"
 
 [libraries]
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version = "0.37.0" }
@@ -67,6 +68,7 @@ androidx-media3-datasource = { group = "androidx.media3", name = "media3-datasou
 accompanist-systemuicontroller = { group = "com.google.accompanist", name = "accompanist-systemuicontroller", version.ref = "accompanistSystemuicontroller" }
 androidx-credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
 androidx-credentials-play-services-auth = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentialsPlayServicesAuth" }
+transport-api = { group = "com.google.android.datatransport", name = "transport-api", version.ref = "transportApi" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

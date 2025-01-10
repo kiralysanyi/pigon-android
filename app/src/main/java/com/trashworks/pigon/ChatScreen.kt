@@ -31,6 +31,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.automirrored.sharp.Send
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.rounded.Add
@@ -67,6 +68,8 @@ import androidx.navigation.NavController
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.trashworks.pigon.ui.theme.PigonTheme
 import io.socket.emitter.Emitter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -345,6 +348,38 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                             .clickable {
                                 //open group editing thing
                                 openEditModal = true;
+                            }
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.Call,
+                        "Call user",
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .height(45.dp)
+                            .padding(5.dp)
+                            .width(45.dp)
+                            .clickable {
+                                //start calld
+                                APIHandler.prepareCall(chatID, onResult = {res ->
+
+                                    if (res.success) {
+                                        SocketConnection.incall = true;
+                                        SocketConnection.socket.once("callresponse${res.data.getString("callid")}", {args ->
+                                            val response = JSONObject(args[0].toString());
+                                            if (!response.getBoolean("accepted")) {
+                                                Log.d("Call", "Declined call: ${response.getString("reason")}")
+                                                SocketConnection.incall = false;
+                                            } else {
+                                                GlobalScope.launch(Dispatchers.Main) {
+                                                    navController.navigate(Call(res.data.toString(), true))
+                                                }
+                                            }
+                                        })
+                                        SocketConnection.socket.emit("call", res.data)
+                                    }
+                                })
                             }
                     )
                 }
