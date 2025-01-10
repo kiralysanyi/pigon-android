@@ -1,18 +1,33 @@
 package com.trashworks.pigon
 
 import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.media.AudioManager
+import android.os.PowerManager
 import android.util.Log
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeDown
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,6 +50,72 @@ import org.json.JSONObject
 import org.webrtc.*
 import java.util.LinkedList
 import java.util.Queue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+
+@Composable
+fun ProximityScreenOff(context: Context) {
+    var isNear by remember { mutableStateOf(false) }
+    val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+    var wakeLock by remember { mutableStateOf<PowerManager.WakeLock?>(null) }
+
+    // Access the proximity sensor
+    DisposableEffect(Unit) {
+        val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        val proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY)
+        val sensorEventListener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent?) {
+                event?.let {
+                    isNear = it.values[0] < proximitySensor!!.maximumRange
+                    updateScreenState(powerManager, wakeLock, isNear) { newWakeLock ->
+                        wakeLock = newWakeLock
+                    }
+                }
+            }
+
+            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+        }
+
+        // Register the sensor listener
+        proximitySensor?.let {
+            sensorManager.registerListener(
+                sensorEventListener,
+                it,
+                SensorManager.SENSOR_DELAY_NORMAL
+            )
+        }
+
+        onDispose {
+            // Unregister the sensor listener
+            sensorManager.unregisterListener(sensorEventListener)
+            wakeLock?.release()
+        }
+    }
+}
+
+private fun updateScreenState(
+    powerManager: PowerManager,
+    wakeLock: PowerManager.WakeLock?,
+    isNear: Boolean,
+    updateWakeLock: (PowerManager.WakeLock?) -> Unit
+) {
+    if (isNear) {
+        if (wakeLock == null || !wakeLock.isHeld) {
+            val newWakeLock = powerManager.newWakeLock(
+                PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK,
+                "MyApp:ProximityScreenOff"
+            )
+            newWakeLock.acquire() // Turn off the screen
+            updateWakeLock(newWakeLock)
+        }
+    } else {
+        wakeLock?.release() // Turn the screen back on
+        updateWakeLock(null)
+    }
+}
+
 
 fun initializePeerConnectionFactory(context: Context): PeerConnectionFactory {
     PeerConnectionFactory.initialize(
@@ -93,8 +174,10 @@ fun sendOffer(peerConnection: PeerConnection?, peerID: String?) {
 }
 
 
+
+
 @Composable
-fun CallScreen(navController: NavController, callInfo: String, isInitiator: Boolean = false) {
+fun CallScreen(navController: NavController, callInfo: String, isInitiator: Boolean = false, displayName: String? = null) {
     val callJson = JSONObject(callInfo)
     val callID = callJson.getString("callid")
     var callAccepted by remember { mutableStateOf(isInitiator) }
@@ -106,7 +189,29 @@ fun CallScreen(navController: NavController, callInfo: String, isInitiator: Bool
     var audioSource: AudioSource? by remember { mutableStateOf(null) }
     val audioManager by remember { mutableStateOf(context.getSystemService(Context.AUDIO_SERVICE) as AudioManager) }
     val initialMessageQueue by remember { mutableStateOf(LinkedList<JSONObject>()) }
-    var preInit = true;
+    var preInit by remember { mutableStateOf(true) };
+
+    var seconds by remember { mutableStateOf(0) }
+    var minutes by remember { mutableStateOf(0) }
+    var hours by remember { mutableStateOf(0) }
+
+    ProximityScreenOff(LocalContext.current)
+
+    // Coroutine to update the timer every second
+    LaunchedEffect(preInit) {
+        while (!preInit) {
+            delay(1000L) // Wait for 1 second
+            seconds++
+            if (seconds == 60) {
+                seconds = 0
+                minutes++
+            }
+            if (minutes == 60) {
+                minutes = 0
+                hours++
+            }
+        }
+    }
 
     LaunchedEffect("") {
         socket.on("relay", { args ->
@@ -117,9 +222,15 @@ fun CallScreen(navController: NavController, callInfo: String, isInitiator: Bool
         })
     }
 
+    var isSpeaker by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isSpeaker) {
+        audioManager.isSpeakerphoneOn = isSpeaker;
+    }
+
     LaunchedEffect(callAccepted) {
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-        audioManager.isSpeakerphoneOn = false;
+
         if (callAccepted) {
             APIHandler.registerPeer(callID, { res ->
                 if (res.success) {
@@ -539,29 +650,62 @@ fun CallScreen(navController: NavController, callInfo: String, isInitiator: Bool
                 }
             } else {
                 //render call UI
-                Text(
+                Column(
                     modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(80.dp),
-                    text = callJson.getString("username")
-                )
+                        .padding(top = 80.dp)
+                        .align(Alignment.TopCenter),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        modifier = Modifier
+                            .padding(50.dp),
+                        text = displayName ?: callJson.getString("username"),
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontSize = 40.sp
+                    )
+
+                    Text(
+                        text = String.format("%02d:%02d:%02d", hours, minutes, seconds),
+                        fontSize = 32.sp,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+
+
+
 
                 Row(
                     modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
                 ) {
-                    Button(onClick = {
-                        //hangup
-                        SocketConnection.socket.off("relay")
-                        audioSource?.dispose()
-                        peerConnection?.close()
-                        SocketConnection.incall = false;
-                        SocketConnection.acceptedCall = false;
-                        navController.navigate("main_screen")
-                    }) {
-                        Text("End call")
+                    Icon(Icons.Filled.PhoneDisabled,"Hang up", tint = MaterialTheme.colorScheme.error, modifier = Modifier
+                        .clickable {
+                            //hangup
+                            SocketConnection.socket.off("relay")
+                            audioSource?.dispose()
+                            peerConnection?.close()
+                            SocketConnection.incall = false;
+                            SocketConnection.acceptedCall = false;
+                            navController.navigate("main_screen")
+                        }
+                        .height(50.dp)
+                        .width(50.dp)
+                    )
+
+                    var speakerIcon = Icons.AutoMirrored.Filled.VolumeUp
+
+                    if (isSpeaker) {
+                        speakerIcon = Icons.AutoMirrored.Filled.VolumeDown
                     }
+
+                    Icon(speakerIcon, "Speaker phone toggle", modifier = Modifier
+                        .clickable {
+                            isSpeaker = !isSpeaker
+                        }
+                        .height(50.dp)
+                        .width(50.dp),
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
                 }
 
             }

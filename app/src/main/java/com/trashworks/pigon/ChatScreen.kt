@@ -70,6 +70,7 @@ import com.trashworks.pigon.ui.theme.PigonTheme
 import io.socket.emitter.Emitter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -169,6 +170,10 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
 
     var openEditModal by remember { mutableStateOf(false) }
 
+    var isCalling by remember { mutableStateOf(false) }
+    var callResponseReason by remember { mutableStateOf("") }
+
+    var callJson: JSONObject? by remember { mutableStateOf(null) }
 
     val context = LocalContext.current.applicationContext;
 
@@ -361,23 +366,33 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                             .padding(5.dp)
                             .width(45.dp)
                             .clickable {
-                                //start calld
+                                //start call
                                 APIHandler.prepareCall(chatID, onResult = {res ->
-
+                                    isCalling = true;
+                                    callResponseReason = "Calling..."
                                     if (res.success) {
                                         SocketConnection.incall = true;
+                                        callJson = res.data;
                                         SocketConnection.socket.once("callresponse${res.data.getString("callid")}", {args ->
                                             val response = JSONObject(args[0].toString());
                                             if (!response.getBoolean("accepted")) {
                                                 Log.d("Call", "Declined call: ${response.getString("reason")}")
-                                                SocketConnection.incall = false;
+                                                callResponseReason = response.getString("reason");
+                                                scope.launch {
+                                                    delay(2000L)
+                                                    isCalling = false;
+                                                    SocketConnection.incall = false;
+                                                    callJson = null;
+                                                }
                                             } else {
                                                 GlobalScope.launch(Dispatchers.Main) {
-                                                    navController.navigate(Call(res.data.toString(), true))
+                                                    navController.navigate(Call(res.data.toString(), true, chatJson.getString("name")))
                                                 }
                                             }
                                         })
                                         SocketConnection.socket.emit("call", res.data)
+                                    } else {
+                                        isCalling = false;
                                     }
                                 })
                             }
@@ -657,6 +672,35 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
 
         if (openEditModal) {
             EditModal(chatJson, closeCallback = { openEditModal = false }, navController)
+        }
+
+        if (isCalling) {
+            Box(
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.background)
+                    .fillMaxSize()
+            ) {
+
+                Text(callResponseReason, fontSize = 30.sp, modifier = Modifier
+                    .padding(top = 30.dp)
+                    .align(Alignment.TopCenter),
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                Button(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding(),
+                    onClick = {
+                        SocketConnection.socket.emit("cancelcall", callJson);
+                        callJson = null;
+                        SocketConnection.incall = false;
+                        isCalling = false;
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
         }
     }
 }

@@ -141,7 +141,7 @@ data class Chat(val chatInfo: String)
 data class Group(val chatInfo: String? = null)
 
 @Serializable
-data class Call(val callInfo: String, val isInitiator: Boolean = false)
+data class Call(val callInfo: String, val isInitiator: Boolean = false, val displayName: String? = null)
 
 @Composable
 fun PigonAppNavGraph(activityContext: Context, activity: MainActivity) {
@@ -181,7 +181,7 @@ fun PigonAppNavGraph(activityContext: Context, activity: MainActivity) {
             }
             ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.RECORD_AUDIO), 1)
             val call: Call = backStackEntry.toRoute()
-            CallScreen(navController, call.callInfo, call.isInitiator)
+            CallScreen(navController, call.callInfo, call.isInitiator, call.displayName)
 
         }
 
