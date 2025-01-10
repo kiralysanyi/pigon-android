@@ -33,6 +33,8 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.webrtc.*
+import java.util.LinkedList
+import java.util.Queue
 
 fun initializePeerConnectionFactory(context: Context): PeerConnectionFactory {
     PeerConnectionFactory.initialize(
@@ -103,10 +105,15 @@ fun CallScreen(navController: NavController, callInfo: String, isInitiator: Bool
     var peerRegistered: Boolean by remember { mutableStateOf(false) }
     var audioSource: AudioSource? by remember { mutableStateOf(null) }
     val audioManager by remember { mutableStateOf(context.getSystemService(Context.AUDIO_SERVICE) as AudioManager) }
+    val initialMessageQueue by remember { mutableStateOf(LinkedList<JSONObject>()) }
+    var preInit = true;
 
     LaunchedEffect("") {
         socket.on("relay", { args ->
             Log.d("Relay", args[0].toString())
+            if (preInit) {
+                initialMessageQueue.add(JSONObject(args[0].toString()));
+            }
         })
     }
 
@@ -183,8 +190,8 @@ fun CallScreen(navController: NavController, callInfo: String, isInitiator: Bool
     }
 
 
-    LaunchedEffect(initiator, deviceID) {
-        if (deviceID != null) {
+    LaunchedEffect(initiator, deviceID, peerID, peerRegistered) {
+        if (deviceID != null && peerID != null && peerRegistered && initiator != null) {
             val peerConnectionFactory = initializePeerConnectionFactory(context)
             val iceServers = listOf(
                 PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer()
@@ -198,9 +205,150 @@ fun CallScreen(navController: NavController, callInfo: String, isInitiator: Bool
 
 
             var negotiationAllowed = false;
+
+            if (isInitiator) {
+                negotiationAllowed = true;
+            }
+
             fun negotiationNeeded() {
                 if (negotiationAllowed) {
                     sendOffer(peerConnection, peerID)
+                } else {
+                    Log.d("WebRTC", "Negotiation not allowed yet")
+                }
+            }
+
+            // Set remote description
+            fun setRemote(sdp: SessionDescription) {
+                if (peerConnection == null) {
+                    Log.e("WebRTC", "setRemote will fail because peerConnection is null")
+                }
+                peerConnection?.setRemoteDescription(
+                    object : SdpObserver {
+                        override fun onCreateSuccess(sdp: SessionDescription?) {
+                            // Not relevant for setRemoteDescription; leave unimplemented or log if needed
+                            Log.d(
+                                "WebRTC",
+                                "onCreateSuccess called unexpectedly for setRemoteDescription"
+                            )
+                        }
+
+                        override fun onSetSuccess() {
+                            // Successfully set the remote description
+                            Log.d("WebRTC", "Remote description set successfully: ${sdp.type}")
+                        }
+
+                        override fun onCreateFailure(error: String?) {
+                            // Not relevant for setRemoteDescription; leave unimplemented or log if needed
+                            Log.e(
+                                "WebRTC",
+                                "onCreateFailure called unexpectedly for setRemoteDescription: $error"
+                            )
+                        }
+
+                        override fun onSetFailure(error: String?) {
+                            // Handle the failure to set the remote description
+                            Log.e("WebRTC", "Failed to set remote description: $error")
+                            // You can implement further error recovery logic here
+                        }
+                    },
+                    sdp
+                )
+            }
+
+            fun createAnswer() {
+                if (peerConnection == null) {
+                    Log.e("WebRTC", "createAnswer will fail because peerConnection is null")
+                }
+                peerConnection?.createAnswer(object : SdpObserver {
+                    override fun onCreateSuccess(sdp: SessionDescription?) {
+                        sdp?.let {
+                            // Set the local description
+                            peerConnection!!.setLocalDescription(object : SdpObserver {
+                                override fun onCreateSuccess(sdp: SessionDescription?) {
+                                    // Not relevant for setLocalDescription
+                                }
+
+                                override fun onSetSuccess() {
+                                    Log.d(
+                                        "WebRTC",
+                                        "Local description set successfully: ${it.type}"
+                                    )
+                                    // Emit the answer to the signaling server
+                                    Log.d("WebRTC", "Answer: $peerID")
+                                    val answerJson = JSONObject().apply {
+                                        put("deviceID", peerID)
+                                        put(
+                                            "data",
+                                            JSONObject().apply {
+                                                put("type", "answer")
+                                                put(
+                                                    "answer",
+                                                    JSONObject("""{"type": "answer", "sdp": "${it.description}"}""")
+                                                )
+                                            }
+                                        )
+                                    }
+                                    SocketConnection.socket.emit("relay", answerJson)
+                                    negotiationAllowed = true;
+                                }
+
+                                override fun onCreateFailure(error: String?) {
+                                    // Not relevant for setLocalDescription
+                                }
+
+                                override fun onSetFailure(error: String?) {
+                                    Log.e("WebRTC", "Failed to set local description: $error")
+                                }
+                            }, it)
+                        }
+                    }
+
+                    override fun onSetSuccess() {
+                        // Not relevant for createAnswer
+                    }
+
+                    override fun onCreateFailure(error: String?) {
+                        Log.e("WebRTC", "Failed to create answer: $error")
+                    }
+
+                    override fun onSetFailure(error: String?) {
+                        // Not relevant for createAnswer
+                    }
+                }, MediaConstraints())
+            }
+
+            fun handlePayload(payload: JSONObject) {
+                val senderID = payload.getString("senderID");
+                val data = payload.getJSONObject("data")
+                Log.d("WebRTC", "Processing: ${data.toString()}")
+
+                if (data.getString("type") == "offer") {
+                    val sdp =
+                        SessionDescription(
+                            SessionDescription.Type.OFFER,
+                            JSONObject(data.getString("offer")).getString("sdp")
+                        )
+                    setRemote(sdp)
+                    createAnswer()
+                }
+
+                if (data.getString("type") == "candidate" && data.getString("candidate") != "null") {
+                    val candidateJSON = JSONObject(data.getString("candidate"))
+                    val sdpMid = candidateJSON.getString("sdpMid")
+                    val sdpMLineIndex = candidateJSON.getInt("sdpMLineIndex")
+                    val sdp = candidateJSON.getString("candidate")
+                    peerConnection?.addIceCandidate(IceCandidate(sdpMid, sdpMLineIndex, sdp))
+                }
+
+                if (data.getString("type") == "answer") {
+                    val answerJSON = JSONObject(data.getString("answer"))
+                    setRemote(
+                        SessionDescription(
+                            SessionDescription.Type.ANSWER,
+                            answerJSON.getString("sdp")
+                        )
+                    )
                 }
             }
 
@@ -312,143 +460,35 @@ fun CallScreen(navController: NavController, callInfo: String, isInitiator: Bool
                 }
             )
 
-            if (isInitiator) {
+            if (preInit) {
+                preInit = false;
+                while (initialMessageQueue.isNotEmpty()) {
+                    val payload = initialMessageQueue.poll();
+                    if (payload != null) {
+                        Log.d("WebRTC", "Loading from queue: ${payload.toString()}")
+                    }
+                    if (payload != null) {
+                        handlePayload(payload)
+                    }
+                }
                 negotiationAllowed = true;
+                negotiationNeeded()
             }
+
+            socket.on("relay", { args ->
+                val payload = JSONObject(args[0].toString());
+                handlePayload(payload)
+
+            })
+
+
 
             //initialize audio
             InitAudio(peerConnection)
 
-            // Set remote description
-            fun setRemote(sdp: SessionDescription) {
-                peerConnection?.setRemoteDescription(
-                    object : SdpObserver {
-                        override fun onCreateSuccess(sdp: SessionDescription?) {
-                            // Not relevant for setRemoteDescription; leave unimplemented or log if needed
-                            Log.d(
-                                "WebRTC",
-                                "onCreateSuccess called unexpectedly for setRemoteDescription"
-                            )
-                        }
-
-                        override fun onSetSuccess() {
-                            // Successfully set the remote description
-                            Log.d("WebRTC", "Remote description set successfully: ${sdp.type}")
-                        }
-
-                        override fun onCreateFailure(error: String?) {
-                            // Not relevant for setRemoteDescription; leave unimplemented or log if needed
-                            Log.e(
-                                "WebRTC",
-                                "onCreateFailure called unexpectedly for setRemoteDescription: $error"
-                            )
-                        }
-
-                        override fun onSetFailure(error: String?) {
-                            // Handle the failure to set the remote description
-                            Log.e("WebRTC", "Failed to set remote description: $error")
-                            // You can implement further error recovery logic here
-                        }
-                    },
-                    sdp
-                )
+            if (isInitiator) {
+                sendOffer(peerConnection, peerID)
             }
-
-            fun createAnswer() {
-                peerConnection?.createAnswer(object : SdpObserver {
-                    override fun onCreateSuccess(sdp: SessionDescription?) {
-                        sdp?.let {
-                            // Set the local description
-                            peerConnection!!.setLocalDescription(object : SdpObserver {
-                                override fun onCreateSuccess(sdp: SessionDescription?) {
-                                    // Not relevant for setLocalDescription
-                                }
-
-                                override fun onSetSuccess() {
-                                    Log.d(
-                                        "WebRTC",
-                                        "Local description set successfully: ${it.type}"
-                                    )
-                                    // Emit the answer to the signaling server
-                                    Log.d("WebRTC", "Answer: $peerID")
-                                    val answerJson = JSONObject().apply {
-                                        put("deviceID", peerID)
-                                        put(
-                                            "data",
-                                            JSONObject().apply {
-                                                put("type", "answer")
-                                                put(
-                                                    "answer",
-                                                    JSONObject("""{"type": "answer", "sdp": "${it.description}"}""")
-                                                )
-                                            }
-                                        )
-                                    }
-                                    SocketConnection.socket.emit("relay", answerJson)
-                                    negotiationAllowed = true;
-                                }
-
-                                override fun onCreateFailure(error: String?) {
-                                    // Not relevant for setLocalDescription
-                                }
-
-                                override fun onSetFailure(error: String?) {
-                                    Log.e("WebRTC", "Failed to set local description: $error")
-                                }
-                            }, it)
-                        }
-                    }
-
-                    override fun onSetSuccess() {
-                        // Not relevant for createAnswer
-                    }
-
-                    override fun onCreateFailure(error: String?) {
-                        Log.e("WebRTC", "Failed to create answer: $error")
-                    }
-
-                    override fun onSetFailure(error: String?) {
-                        // Not relevant for createAnswer
-                    }
-                }, MediaConstraints())
-            }
-
-
-
-            socket.on("relay", { args ->
-                val payload = JSONObject(args[0].toString());
-                val senderID = payload.getString("senderID");
-                val data = payload.getJSONObject("data")
-
-                if (data.getString("type") == "offer") {
-                    val sdp =
-                        SessionDescription(
-                            SessionDescription.Type.OFFER,
-                            JSONObject(data.getString("offer")).getString("sdp")
-                        )
-                    setRemote(sdp)
-                    createAnswer()
-                }
-
-                if (data.getString("type") == "candidate" && data.getString("candidate") != "null") {
-                    val candidateJSON = JSONObject(data.getString("candidate"))
-                    val sdpMid = candidateJSON.getString("sdpMid")
-                    val sdpMLineIndex = candidateJSON.getInt("sdpMLineIndex")
-                    val sdp = candidateJSON.getString("candidate")
-                    peerConnection?.addIceCandidate(IceCandidate(sdpMid, sdpMLineIndex, sdp))
-                }
-
-                if (data.getString("type") == "answer") {
-                    val answerJSON = JSONObject(data.getString("answer"))
-                    setRemote(
-                        SessionDescription(
-                            SessionDescription.Type.ANSWER,
-                            answerJSON.getString("sdp")
-                        )
-                    )
-                }
-
-            })
         }
     }
 

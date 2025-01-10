@@ -24,9 +24,9 @@ object SocketConnection {
     @OptIn(DelicateCoroutinesApi::class)
     fun init(navController: NavController) {
         Log.d("Socket", "Initializing socketio connection")
-        socket.on("error", {args ->
-            Log.e("Socket error", args.toString())
-        })
+        socket.on("error") { args ->
+            Log.e("Socket error", args.joinToString(", "))
+        }
 
         socket.on("connect", {
             Log.d("Socket", "Connected to socketio host")
