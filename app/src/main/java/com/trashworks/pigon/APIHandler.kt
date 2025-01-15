@@ -478,6 +478,7 @@ object APIHandler {
             try {
                 val response = client.newCall(request).execute()
                 if (response.headers["Set-Cookie"] != null) {
+                    isLoggedIn = true;
                     cookies = response.headers["Set-Cookie"].toString()
                 }
                 val stringResponse = response.body?.string()
