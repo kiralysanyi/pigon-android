@@ -1,5 +1,6 @@
 package com.trashworks.pigon
 
+import android.content.Intent
 import android.text.Html
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -64,6 +65,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat.startActivity
 import androidx.navigation.NavController
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.trashworks.pigon.ui.theme.PigonTheme
@@ -387,6 +389,15 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                                             } else {
                                                 GlobalScope.launch(Dispatchers.Main) {
                                                     //open call activity res.data.toString(), isInitiator = true, chatJson.getString("name")
+                                                    val intent = Intent(context, CallActivity::class.java)
+                                                    intent.apply {
+                                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                                        putExtra("callInfo", res.data.toString())
+                                                        putExtra("isInitiator", true)
+                                                        putExtra("displayName", chatJson.getString("name"))
+                                                    }
+                                                    context.startActivity(intent)
+                                                    SocketConnection.incall = true;
                                                 }
                                             }
                                         })

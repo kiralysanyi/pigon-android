@@ -39,10 +39,10 @@ class PushNotificationService : FirebaseMessagingService() {
         super.onMessageReceived(message)
         Log.d("NotifHandler", "Received data: ${message.data.toString()}")
 
-        if(message.data["type"] == "message") {
+        if (message.data["type"] == "message") {
             // Check if message contains a notification payload.
             var messageID = 0;
-            message.data.let { messageID = it["messageID"]?.toInt() ?: 0;}
+            message.data.let { messageID = it["messageID"]?.toInt() ?: 0; }
 
 
             message.messageType?.let { Log.d("Message type", it) }
@@ -56,9 +56,12 @@ class PushNotificationService : FirebaseMessagingService() {
             // Check if message contains a notification payload.
             var messageID = 0;
             var isCancelRequest = false;
-            message.data.let { messageID = it["messageID"]?.toInt() ?: 0; isCancelRequest = (it["type"] == "cancel")}
+            message.data.let {
+                messageID = it["messageID"]?.toInt() ?: 0; isCancelRequest =
+                (it["type"] == "cancel")
+            }
 
-            Log.d("NotifHandler","cancel:$isCancelRequest msgid:$messageID")
+            Log.d("NotifHandler", "cancel:$isCancelRequest msgid:$messageID")
             if (isCancelRequest) {
                 cancelNotification(messageID)
                 return;
@@ -107,7 +110,7 @@ class PushNotificationService : FirebaseMessagingService() {
                 return;
             }
 
-                        val intent = Intent(applicationContext, CallActivity::class.java)
+            val intent = Intent(applicationContext, CallActivity::class.java)
             intent.apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                 putExtra("callInfo", callInfo.toString())
@@ -127,7 +130,7 @@ class PushNotificationService : FirebaseMessagingService() {
         notificationManager.cancel(notificationId)
     }
 
-    private fun sendNotification(messageTitle: String, messageBody: String, notificationId:Int) {
+    private fun sendNotification(messageTitle: String, messageBody: String, notificationId: Int) {
         val intent = Intent(this, MainActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
         val requestCode = 0

@@ -190,14 +190,31 @@ fun CallScreen(callInfo: String, isInitiator: Boolean = false, displayName: Stri
         }
     }
 
+    LaunchedEffect(isSpeaker) {
+        callService?.setSpeaker(isSpeaker);
+    }
 
-
+    LaunchedEffect("") {
+        callService?.preInit();
+        while (true) {
+            delay(1000L) // Wait for 1 second
+            seconds++
+            if (seconds == 60) {
+                seconds = 0
+                minutes++
+            }
+            if (minutes == 60) {
+                minutes = 0
+                hours++
+            }
+        }
+    }
 
     LaunchedEffect(initiator, deviceID, peerID, peerRegistered) {
-        Log.d("WebRTC", "Init: $initiator, $deviceID, $peerID, $peerRegistered")
+        Log.d("WebRTC", "Init: $initiator, $deviceID, $peerID, $peerRegistered, $isInitiator")
         if (peerID != null && deviceID != null && peerRegistered && initiator != null) {
             callService?.setData(isInitiator, callInfo, peerID!!, deviceID!!, initiator!!);
-            callService?.InitWebRTC(isInitiator, onEnded)
+            callService?.InitWebRTC(onEnded)
         }
     }
 

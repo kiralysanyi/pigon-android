@@ -121,9 +121,6 @@ class CallService: Service() {
     private val initialMessageQueue = LinkedList<JSONObject>();
     private var preInit = true;
     private var audioManager: AudioManager? = null
-    var seconds = 0;
-    var minutes = 0;
-    var hours = 0;
     private var isInitiator = false;
 
     fun hangUP() {
@@ -147,6 +144,14 @@ class CallService: Service() {
         audioManager?.isSpeakerphoneOn = isSpeakerPhone
     }
 
+    fun preInit() {
+        socket.on("relay", { args ->
+            Log.d("Relay", args[0].toString())
+            if (preInit) {
+                initialMessageQueue.add(JSONObject(args[0].toString()));
+            }
+        })
+    }
 
     public fun InitAudio() {
         Log.d("WebRTC", "Initializing audio")
@@ -186,7 +191,7 @@ class CallService: Service() {
         Log.d("WebRTC", "Audio track initialized and added to transceiver")
     }
 
-    public fun InitWebRTC(isInitiator: Boolean, onEnded: () -> Unit) {
+    public fun InitWebRTC(onEnded: () -> Unit) {
         Log.d("WebRTC", "Initializing webrtc")
         audioManager?.mode = AudioManager.MODE_IN_COMMUNICATION
         if (deviceID != null && peerID != null && initiator != null) {
@@ -499,27 +504,6 @@ class CallService: Service() {
             }
         }
 
-        socket.on("relay", { args ->
-            Log.d("Relay", args[0].toString())
-            if (preInit) {
-                initialMessageQueue.add(JSONObject(args[0].toString()));
-            }
-        })
-
-        GlobalScope.launch {
-            while (!preInit) {
-                delay(1000L) // Wait for 1 second
-                seconds++
-                if (seconds == 60) {
-                    seconds = 0
-                    minutes++
-                }
-                if (minutes == 60) {
-                    minutes = 0
-                    hours++
-                }
-            }
-        }
         return super.onStartCommand(intent, flags, startId)
     }
 }
