@@ -59,10 +59,25 @@ object APIHandler {
     private val uri = "https://pigon.ddns.net";
     private var requestHeaders = Headers.Builder().set("Content-Type", "application/json").build();
     private lateinit var cookies: String;
-    private var isLoggedIn = false;
+    public var isLoggedIn = false;
 
-    fun getCookies(): String {
-        return cookies;
+    fun getCookies(context: Context? = null): String {
+        if (isLoggedIn) {
+            return cookies;
+        } else {
+            Log.e("APIHandler", "Failed to get cookies")
+            if (context == null) {
+                return "";
+            } else {
+                GlobalScope.launch {
+                    val dsWrapper = DataStoreWrapper(context)
+                    setCookies(dsWrapper.getString()!!, dsWrapper)
+                }
+                return cookies
+            }
+
+        }
+
     }
 
     fun submitFirebaseToken(token: String, onResult: (ReturnObject) -> Unit) {
@@ -545,6 +560,10 @@ object APIHandler {
                 .build();
         Log.d("Request headers set: ", requestHeaders.toString())
         isLoggedIn = true;
+
+        if (!SocketConnection.initialized) {
+            SocketConnection.init();
+        }
     }
 
     // Helper function to convert Uri to File

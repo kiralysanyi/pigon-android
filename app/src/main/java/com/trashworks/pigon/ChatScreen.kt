@@ -386,7 +386,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                                                 }
                                             } else {
                                                 GlobalScope.launch(Dispatchers.Main) {
-                                                    navController.navigate(Call(res.data.toString(), true, chatJson.getString("name")))
+                                                    //open call activity res.data.toString(), isInitiator = true, chatJson.getString("name")
                                                 }
                                             }
                                         })

@@ -2,12 +2,14 @@ package com.trashworks.pigon
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -92,9 +94,11 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
+import com.google.android.datatransport.BuildConfig
 import com.google.firebase.Firebase
 import com.google.firebase.messaging.messaging
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -104,6 +108,18 @@ import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.InputStream
+
+fun hasOverlayPermission(context: Context): Boolean {
+    return Settings.canDrawOverlays(context)
+}
+
+fun requestOverlayPermission(context: Context) {
+    if (!hasOverlayPermission(context)) {
+        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+        intent.data = Uri.parse("package:${context.packageName}")
+        context.startActivity(intent)
+    }
+}
 
 
 class MainActivity : ComponentActivity() {
@@ -118,6 +134,10 @@ class MainActivity : ComponentActivity() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 RequestNotificationPermission(LocalContext.current, this)
             }
+
+            requestOverlayPermission(LocalContext.current)
+
+
             PigonAppNavGraph(activityContext, this)
         }
     }
@@ -128,7 +148,11 @@ fun RequestNotificationPermission(context: Context, activity: MainActivity) {
         val hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
         if (!hasPermission) {
-            ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0)
+            Toast.makeText(context, "Please grant appear on top permission to receive calls in the background", Toast.LENGTH_LONG).show()
+            GlobalScope.launch {
+                delay(1000L)
+                ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0)
+            }
         }
     }
 }
@@ -175,16 +199,6 @@ fun PigonAppNavGraph(activityContext: Context, activity: MainActivity) {
             NewChatScreen(navController)
         }
 
-        composable<Call> { backStackEntry ->
-            BackHandler(true) {
-                //do nothing bruh
-            }
-            ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.RECORD_AUDIO), 1)
-            val call: Call = backStackEntry.toRoute()
-            CallScreen(navController, call.callInfo, call.isInitiator, call.displayName)
-
-        }
-
         composable<Group> { backStackEntry ->
             val group: Group = backStackEntry.toRoute()
             NewGroupScreen(navController, group.chatInfo)
@@ -226,7 +240,7 @@ fun LoadingScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                             navController.navigate("login_screen")
                         } else {
                             if (!SocketConnection.initialized) {
-                                SocketConnection.init(navController)
+                                SocketConnection.init()
                             }
                             navController.navigate("main_screen")
                         }
