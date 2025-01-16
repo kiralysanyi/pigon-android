@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
+import androidx.compose.ui.geometry.isEmpty
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.AudioAttributes
 import com.trashworks.pigon.SocketConnection.socket
@@ -40,64 +41,64 @@ import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
 import java.util.LinkedList
 
-fun initializePeerConnectionFactory(context: Context): PeerConnectionFactory {
-    PeerConnectionFactory.initialize(
-        PeerConnectionFactory.InitializationOptions.builder(context)
-            .setEnableInternalTracer(true)
-            .createInitializationOptions()
-    )
-
-
-    val options = PeerConnectionFactory.Options()
-    val eglBase = EglBase.create()
-    val encoderFactory = DefaultVideoEncoderFactory(eglBase.eglBaseContext, true, true)
-    val decoderFactory = DefaultVideoDecoderFactory(eglBase.eglBaseContext)
-
-    return PeerConnectionFactory.builder()
-        .setOptions(options)
-        .setVideoEncoderFactory(encoderFactory)
-        .setVideoDecoderFactory(decoderFactory)
-        .createPeerConnectionFactory()
-}
-
-fun sendOffer(peerConnection: PeerConnection?, peerID: String?) {
-    peerConnection?.createOffer(object : SdpObserver {
-        override fun onCreateSuccess(sdp: SessionDescription?) {
-            sdp?.let {
-                // Set local description
-                peerConnection.setLocalDescription(this, it)
-                // Emit offer to the signaling server
-                val offerJson = JSONObject().apply {
-                    put("type", "offer")
-                    put("sdp", it.description)
-                }
-                socket.emit(
-                    "relay",
-                    JSONObject("""{"deviceID": "$peerID", "data": {"type": "offer", "offer": $offerJson}}""")
-                )
-
-            }
-        }
-
-        override fun onSetSuccess() {
-            // Log or handle successful local description set
-            Log.d("WebRTC", "Local description set successfully")
-        }
-
-        override fun onCreateFailure(error: String?) {
-            // Handle the error of offer creation failure
-            Log.e("WebRTC", "Offer creation failed: $error")
-        }
-
-        override fun onSetFailure(error: String?) {
-            // Handle the error of setting the local description failure
-            Log.e("WebRTC", "Failed to set local description: $error")
-        }
-    }, MediaConstraints())
-}
-
 
 class CallService: Service() {
+
+    private fun initializePeerConnectionFactory(context: Context): PeerConnectionFactory {
+        PeerConnectionFactory.initialize(
+            PeerConnectionFactory.InitializationOptions.builder(context)
+                .setEnableInternalTracer(true)
+                .createInitializationOptions()
+        )
+
+
+        val options = PeerConnectionFactory.Options()
+        val eglBase = EglBase.create()
+        val encoderFactory = DefaultVideoEncoderFactory(eglBase.eglBaseContext, true, true)
+        val decoderFactory = DefaultVideoDecoderFactory(eglBase.eglBaseContext)
+
+        return PeerConnectionFactory.builder()
+            .setOptions(options)
+            .setVideoEncoderFactory(encoderFactory)
+            .setVideoDecoderFactory(decoderFactory)
+            .createPeerConnectionFactory()
+    }
+
+    private fun sendOffer(peerConnection: PeerConnection?, peerID: String?) {
+        peerConnection?.createOffer(object : SdpObserver {
+            override fun onCreateSuccess(sdp: SessionDescription?) {
+                sdp?.let {
+                    // Set local description
+                    peerConnection.setLocalDescription(this, it)
+                    // Emit offer to the signaling server
+                    val offerJson = JSONObject().apply {
+                        put("type", "offer")
+                        put("sdp", it.description)
+                    }
+                    socket.emit(
+                        "relay",
+                        JSONObject("""{"deviceID": "$peerID", "data": {"type": "offer", "offer": $offerJson}}""")
+                    )
+
+                }
+            }
+
+            override fun onSetSuccess() {
+                // Log or handle successful local description set
+                Log.d("WebRTC", "Local description set successfully")
+            }
+
+            override fun onCreateFailure(error: String?) {
+                // Handle the error of offer creation failure
+                Log.e("WebRTC", "Offer creation failed: $error")
+            }
+
+            override fun onSetFailure(error: String?) {
+                // Handle the error of setting the local description failure
+                Log.e("WebRTC", "Failed to set local description: $error")
+            }
+        }, MediaConstraints())
+    }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -152,6 +153,15 @@ class CallService: Service() {
     }
 
     override fun onCreate() {
+        if (!SocketConnection.initialized) {
+            //initialize API and SocketConnection
+            val dsWrapper = DataStoreWrapper(applicationContext);
+            GlobalScope.launch(Dispatchers.IO) {
+                dsWrapper.getString()?.let { APIHandler.setCookies(it, dsWrapper) }
+                SocketConnection.init();
+            }
+        }
+
         super.onCreate()
 
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -210,15 +220,16 @@ class CallService: Service() {
     }
 
     fun preInit() {
+        SocketConnection.init()
         socket.on("relay", { args ->
-            Log.d("Relay", args[0].toString())
+            Log.d("Relay_preinit", args[0].toString())
             if (preInit) {
                 initialMessageQueue.add(JSONObject(args[0].toString()));
             }
         })
     }
 
-    public fun InitAudio() {
+    fun InitAudio() {
 
         audioManager = context?.getSystemService(Context.AUDIO_SERVICE) as AudioManager;
 
@@ -302,6 +313,25 @@ class CallService: Service() {
 
             if (isInitiator) {
                 negotiationAllowed = true;
+            }
+
+            val negotiationQueue = LinkedList<Runnable>()
+
+            // Flag to track negotiation state
+            var isNegotiating = false
+
+            fun processNegotiationQueue() {
+                if (isNegotiating || negotiationQueue.isEmpty()) {
+                    return
+                }
+
+                isNegotiating = true
+                val task = negotiationQueue.poll()
+                task?.run()
+
+                // After the task is completed, process the next item in the queue
+                isNegotiating = false
+                processNegotiationQueue()
             }
 
             fun negotiationNeeded() {
@@ -418,13 +448,16 @@ class CallService: Service() {
                 Log.d("WebRTC", "Processing: ${data.toString()}")
 
                 if (data.getString("type") == "offer") {
-                    val sdp =
-                        SessionDescription(
-                            SessionDescription.Type.OFFER,
-                            JSONObject(data.getString("offer")).getString("sdp")
-                        )
-                    setRemote(sdp)
-                    createAnswer()
+                    val sdp = SessionDescription(SessionDescription.Type.OFFER, JSONObject(data.getString("offer")).getString("sdp"))
+                    negotiationQueue.add {
+                        if (peerConnection?.signalingState() == PeerConnection.SignalingState.STABLE) {
+                            setRemote(sdp)
+                            createAnswer()
+                        } else {
+                            Log.w("WebRTC", "Ignoring offer due to invalid PeerConnection state: ${peerConnection?.signalingState()}")
+                        }
+                    }
+                    processNegotiationQueue()
                 }
 
                 if (data.getString("type") == "candidate" && data.getString("candidate") != "null") {
@@ -570,7 +603,6 @@ class CallService: Service() {
             socket.on("relay", { args ->
                 val payload = JSONObject(args[0].toString());
                 handlePayload(payload)
-
             })
 
 
@@ -588,15 +620,6 @@ class CallService: Service() {
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (!SocketConnection.initialized) {
-            //initialize API and SocketConnection
-            val dsWrapper = DataStoreWrapper(applicationContext);
-            GlobalScope.launch(Dispatchers.IO) {
-                dsWrapper.getString()?.let { APIHandler.setCookies(it, dsWrapper) }
-                SocketConnection.init();
-            }
-        }
-
-        return super.onStartCommand(intent, flags, startId)
+                return super.onStartCommand(intent, flags, startId)
     }
 }

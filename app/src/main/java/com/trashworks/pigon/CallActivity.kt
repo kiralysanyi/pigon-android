@@ -84,6 +84,7 @@ class CallActivity : ComponentActivity() {
                         callInfo, isInitiator, displayName,
                         onEnded = {
                             //call ended
+                            SocketConnection.socket.disconnect();
                             activityContext.finish()
                         },
                         callService

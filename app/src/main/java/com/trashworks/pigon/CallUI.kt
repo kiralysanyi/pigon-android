@@ -195,7 +195,7 @@ fun CallScreen(callInfo: String, isInitiator: Boolean = false, displayName: Stri
     }
 
     LaunchedEffect("") {
-        callService?.preInit();
+        callService?.preInit()
         while (true) {
             delay(1000L) // Wait for 1 second
             seconds++
@@ -264,11 +264,13 @@ fun CallScreen(callInfo: String, isInitiator: Boolean = false, displayName: Stri
                             put("accepted", true)
                             put("reason", "Why not?")
                         }
+
+                        callAccepted = true;
+
                         SocketConnection.socket.emit(
                             "answercall",
                             responseJson
                         )
-                        callAccepted = true;
                     }) {
 
                         Text("Accept")

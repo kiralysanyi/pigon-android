@@ -273,9 +273,7 @@ fun LoadingScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                         if (!res.success) {
                             navController.navigate("login_screen")
                         } else {
-                            if (!SocketConnection.initialized) {
-                                SocketConnection.init()
-                            }
+                            SocketConnection.init()
                             navController.navigate("main_screen")
                         }
                     }

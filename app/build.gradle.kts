@@ -24,7 +24,7 @@ android {
         minSdk = 33
         targetSdk = 35
         versionCode = 2
-        versionName = "1.4"
+        versionName = "1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         signingConfig = signingConfigs.getByName("debug")

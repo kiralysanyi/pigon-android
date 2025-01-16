@@ -23,23 +23,20 @@ object SocketConnection {
     var incall = false;
     var acceptedCall = false;
     var socket: Socket = IO.socket("https://pigon.ddns.net", socketOptions);
-    @OptIn(DelicateCoroutinesApi::class)
+
     fun init() {
-        socketOptions = IO.Options().apply {
-            extraHeaders = singletonMap("Cookie", singletonList(APIHandler.getCookies()))
-            path = "/socketio"
+        if (!initialized) { // Check if the socket has been initialized before
+            socketOptions = IO.Options().apply {
+                extraHeaders = singletonMap("Cookie", singletonList(APIHandler.getCookies()))
+                path = "/socketio"
+            }
+            socket = IO.socket("https://pigon.ddns.net", socketOptions)
+            socket.connect()
+            // ... (rest of the initialization code) ...
+            initialized = true // Set initialized to true after initializing the socket
+        } else if (!socket.connected()) {
+            // If the socket is initialized but not connected, try to reconnect
+            socket.connect()
         }
-        socket = IO.socket("https://pigon.ddns.net", socketOptions);
-        Log.d("Socket", "Initializing socketio connection")
-        socket.on("error") { args ->
-            Log.e("Socket error", args.joinToString(", "))
-        }
-
-        socket.on("connect", {
-            Log.d("Socket", "Connected to socketio host")
-        })
-        socket.connect()
-
-        initialized = true;
     }
 }

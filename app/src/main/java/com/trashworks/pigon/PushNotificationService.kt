@@ -73,7 +73,6 @@ class PushNotificationService : FirebaseMessagingService() {
             val dsWrapper = DataStoreWrapper(applicationContext);
             GlobalScope.launch {
                 dsWrapper.getString()?.let { APIHandler.setCookies(it, dsWrapper) }
-                SocketConnection.init()
             }
         }
 
