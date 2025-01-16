@@ -3,14 +3,17 @@ package com.trashworks.pigon
 import android.content.Intent
 import android.text.Html
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,6 +22,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -28,10 +32,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.automirrored.sharp.Send
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
@@ -39,9 +45,13 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldColors
@@ -63,6 +73,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat.startActivity
@@ -75,6 +86,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -84,7 +96,6 @@ fun decodeHTML(html: String): String {
 
 @Composable
 fun ChatScreen(navController: NavController, chatInfo: String) {
-    Log.d("Chatinfo", chatInfo)
     val chatJson = JSONObject(chatInfo)
     val chatID = chatJson.getInt("chatid");
     var userInfo by remember {
@@ -131,6 +142,8 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
         mutableStateOf(1)
     }
 
+    var showProfileInfo by remember { mutableStateOf(false) }
+
     var messages by remember { mutableStateOf(listOf<JSONObject>()) }
 
     val scope = rememberCoroutineScope();
@@ -146,12 +159,14 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
             val msgData = JSONObject(args[0].toString());
             msgData.put("senderid", msgData.getInt("senderID"))
             msgData.remove("senderID");
-            Log.d("msgdata", msgData.toString() + "Chatid: $chatID");
             if (msgData.getInt("chatID") == chatID) {
-                SocketConnection.socket.emit("setLastRead", JSONObject("""{"chatID": $chatID, messageID: ${msgData.getInt("messageID")}}"""))
+                SocketConnection.socket.emit(
+                    "setLastRead",
+                    JSONObject("""{"chatID": $chatID, messageID: ${msgData.getInt("messageID")}}""")
+                )
                 //add message to messages;
                 messages = listOf(msgData) + messages
-                Log.d("AAAAAAAAAAAAAA", messages.toString())
+
                 scope.launch {
                     listState.scrollToItem(0);
                 }
@@ -178,6 +193,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
     var callJson: JSONObject? by remember { mutableStateOf(null) }
 
     val context = LocalContext.current.applicationContext;
+    var pfpID by remember { mutableStateOf(0)}
 
     LaunchedEffect(isAtTop) {
         if (isAtTop && !isLoading && !reachedLastPage) {
@@ -185,8 +201,6 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
             scope.launch {
                 page++;
                 APIHandler.getMessages(chatID, page = page) { res ->
-                    Log.d("Fing", res.dataArray.toString())
-                    Log.d("Fing", res.data.toString())
                     if (res.dataArray.length() == 0) {
                         reachedLastPage = true;
                     }
@@ -224,7 +238,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                     navController.navigate("loading_screen");
                 } else {
                     userInfo = res.data.getJSONObject("data");
-                    Log.d("UserInfo", userInfo.toString())
+
                     userInfoLoaded = true;
                 }
 
@@ -235,8 +249,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
         if (!messagesLoaded) {
             scope.launch {
                 APIHandler.getMessages(chatID, page = 1) { res ->
-                    Log.d("Fing", res.dataArray.toString())
-                    Log.d("Fing", res.data.toString())
+
                     messages = res.dataArray.let { jsonArray ->
                         List(jsonArray.length()) { index ->
                             jsonArray.getJSONObject(index)
@@ -311,7 +324,6 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                         if (chatJson.getInt("groupchat") == 0) {
                             //display pfp if not groupchat
                             val participants = chatJson.getJSONArray("participants")
-                            var pfpID = 0;
                             if (participants.length() == 2) {
                                 for (i in 0..<participants.length()) {
                                     if (participants.get(i) != userInfo.getInt("id")) {
@@ -326,6 +338,9 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                                     .height(50.dp)
                                     .padding(5.dp)
                                     .clip(RoundedCornerShape(50.dp))
+                                    .clickable {
+                                        showProfileInfo = true;
+                                    }
 
                             )
 
@@ -337,6 +352,10 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                             fontSize = 20.sp,
                             modifier = Modifier
                                 .padding(top = 10.dp, bottom = 10.dp)
+                                .clickable {
+                                    showProfileInfo = true;
+
+                                }
 
                         )
                     }
@@ -357,7 +376,9 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                                 openEditModal = true;
                             }
                     )
-                } else {
+                }
+
+                if (!showEditButton && chatJson.getInt("groupchat") == 0) {
                     Icon(
                         Icons.Default.Call,
                         "Call user",
@@ -369,38 +390,57 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                             .width(45.dp)
                             .clickable {
                                 //start call
-                                APIHandler.prepareCall(chatID, onResult = {res ->
+                                APIHandler.prepareCall(chatID, onResult = { res ->
                                     isCalling = true;
                                     callResponseReason = "Calling..."
                                     if (res.success) {
                                         SocketConnection.incall = true;
                                         callJson = res.data;
-                                        SocketConnection.socket.once("callresponse${res.data.getString("callid")}", {args ->
-                                            val response = JSONObject(args[0].toString());
-                                            if (!response.getBoolean("accepted")) {
-                                                Log.d("Call", "Declined call: ${response.getString("reason")}")
-                                                callResponseReason = response.getString("reason");
-                                                scope.launch {
-                                                    delay(2000L)
-                                                    isCalling = false;
-                                                    SocketConnection.incall = false;
-                                                    callJson = null;
-                                                }
-                                            } else {
-                                                GlobalScope.launch(Dispatchers.Main) {
-                                                    //open call activity res.data.toString(), isInitiator = true, chatJson.getString("name")
-                                                    val intent = Intent(context, CallActivity::class.java)
-                                                    intent.apply {
-                                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                                                        putExtra("callInfo", res.data.toString())
-                                                        putExtra("isInitiator", true)
-                                                        putExtra("displayName", chatJson.getString("name"))
+                                        SocketConnection.socket.once(
+                                            "callresponse${
+                                                res.data.getString(
+                                                    "callid"
+                                                )
+                                            }", { args ->
+                                                val response = JSONObject(args[0].toString());
+                                                if (!response.getBoolean("accepted")) {
+                                                    Log.d(
+                                                        "Call",
+                                                        "Declined call: ${response.getString("reason")}"
+                                                    )
+                                                    callResponseReason =
+                                                        response.getString("reason");
+                                                    scope.launch {
+                                                        delay(2000L)
+                                                        isCalling = false;
+                                                        SocketConnection.incall = false;
+                                                        callJson = null;
                                                     }
-                                                    context.startActivity(intent)
-                                                    SocketConnection.incall = true;
+                                                } else {
+                                                    GlobalScope.launch(Dispatchers.Main) {
+                                                        //open call activity res.data.toString(), isInitiator = true, chatJson.getString("name")
+                                                        val intent = Intent(
+                                                            context,
+                                                            CallActivity::class.java
+                                                        )
+                                                        intent.apply {
+                                                            flags =
+                                                                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                                            putExtra(
+                                                                "callInfo",
+                                                                res.data.toString()
+                                                            )
+                                                            putExtra("isInitiator", true)
+                                                            putExtra(
+                                                                "displayName",
+                                                                chatJson.getString("name")
+                                                            )
+                                                        }
+                                                        context.startActivity(intent)
+                                                        SocketConnection.incall = true;
+                                                    }
                                                 }
-                                            }
-                                        })
+                                            })
                                         SocketConnection.socket.emit("call", res.data)
                                     } else {
                                         isCalling = false;
@@ -424,7 +464,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
             ) {
                 if (messagesLoaded == true && userInfoLoaded) {
                     //render messages
-                    Log.d("AAAA", messages.toString())
+
                     items(messages) { message ->
                         val msgData = JSONObject(message.getString("message"));
 
@@ -455,7 +495,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
 
                         try {
                             read = message.getBoolean("read");
-                            Log.d("Read", read.toString())
+
                         } catch (e: Exception) {
                             Log.e("AA", e.toString())
                             read = true;
@@ -692,9 +732,10 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                     .fillMaxSize()
             ) {
 
-                Text(callResponseReason, fontSize = 30.sp, modifier = Modifier
-                    .padding(top = 30.dp)
-                    .align(Alignment.TopCenter),
+                Text(
+                    callResponseReason, fontSize = 30.sp, modifier = Modifier
+                        .padding(top = 30.dp)
+                        .align(Alignment.TopCenter),
                     color = MaterialTheme.colorScheme.onBackground
                 )
 
@@ -713,13 +754,18 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                 }
             }
         }
+
+        if(showProfileInfo && chatJson.getInt("groupchat") == 0) {
+            ProfileViewer(pfpID, chatJson) { showProfileInfo = false }
+        }
     }
 }
 
 @Composable
 fun EditModal(chatJson: JSONObject, closeCallback: () -> Unit, navController: NavController) {
     var participants = remember { mutableStateListOf<JSONObject>() }
-    var scope = rememberCoroutineScope()
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
 
     LaunchedEffect("") {
@@ -808,6 +854,16 @@ fun EditModal(chatJson: JSONObject, closeCallback: () -> Unit, navController: Na
             Button(
                 onClick = {
                     //delete group
+                    APIHandler.deleteGroup(chatid = chatJson.getInt("chatid")) { res ->
+                        if (res.success) {
+                            scope.launch {
+                                navController.navigate("main_screen")
+                            }
+                        } else {
+                            Toast.makeText(context, "Error: ${res.message}", Toast.LENGTH_LONG)
+                                .show()
+                        }
+                    }
                 }, colors = ButtonColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer,
                     contentColor = MaterialTheme.colorScheme.onErrorContainer,
@@ -822,5 +878,59 @@ fun EditModal(chatJson: JSONObject, closeCallback: () -> Unit, navController: Na
         }
 
 
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProfileViewer(userID:Int, chatJson: JSONObject, onBackClicked: () -> Unit) {
+    var extraInfo by remember { mutableStateOf<JSONObject?>(null) }
+
+    val context = LocalContext.current;
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect("") {
+        APIHandler.getExtraInfo(userID) { res ->
+            if (res.success) {
+                extraInfo = res.data;
+            } else {
+               scope.launch {
+                   Log.e("ProfileViewer", "Failed to load extra info for this user: ${res.message}")
+                   Toast.makeText(context, "Failed to load extra info for this user: ${res.message}", Toast.LENGTH_LONG).show()
+               }
+            }
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text(chatJson.getString("name")) },
+                navigationIcon = {
+                    IconButton(onClick = onBackClicked) {
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Placeholder for profile image
+            LoadImageFromUrl( "https://pigon.ddns.net/api/v1/auth/pfp?id=$userID&smol=true")
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (extraInfo != null) {
+                Text(extraInfo!!.getString("fullname"), style = MaterialTheme.typography.headlineMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(decodeHTML(extraInfo!!.getString("bio").replace("\n", "<br>")), style = MaterialTheme.typography.bodyMedium)
+            }
+        }
     }
 }

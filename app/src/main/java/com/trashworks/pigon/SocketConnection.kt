@@ -15,16 +15,21 @@ import java.util.Collections.singletonMap
 object SocketConnection {
 
 
-    val socketOptions = IO.Options().apply {
+    var socketOptions = IO.Options().apply {
         extraHeaders = singletonMap("Cookie", singletonList(APIHandler.getCookies()))
         path = "/socketio"
     }
     var initialized = false;
     var incall = false;
     var acceptedCall = false;
-    val socket: Socket = IO.socket("https://pigon.ddns.net", socketOptions);
+    var socket: Socket = IO.socket("https://pigon.ddns.net", socketOptions);
     @OptIn(DelicateCoroutinesApi::class)
     fun init() {
+        socketOptions = IO.Options().apply {
+            extraHeaders = singletonMap("Cookie", singletonList(APIHandler.getCookies()))
+            path = "/socketio"
+        }
+        socket = IO.socket("https://pigon.ddns.net", socketOptions);
         Log.d("Socket", "Initializing socketio connection")
         socket.on("error") { args ->
             Log.e("Socket error", args.joinToString(", "))

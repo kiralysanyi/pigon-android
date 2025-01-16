@@ -408,6 +408,107 @@ object APIHandler {
         }
     }
 
+    fun postExtraInfo(fullname: String, bio: String, onResult: (ReturnObject) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."))
+            return
+        }
+
+        val dataObject = JSONObject()
+        dataObject.put("fullname", fullname)
+        dataObject.put("bio", bio)
+
+        val requestBodyObject = JSONObject()
+        requestBodyObject.put("data", dataObject)
+
+        val requestBody = requestBodyObject.toString().toRequestBody()
+
+        val request = Request.Builder()
+            .url("$uri/api/v1/auth/extrainfo")
+            .headers(requestHeaders)
+            .post(requestBody)
+            .build()
+
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                val response = client.newCall(request).execute()
+                val responseJson = JSONObject(response.body?.string())
+
+                if (responseJson.getBoolean("success")) {
+                    onResult(ReturnObject(true, responseJson.getString("message")))
+                } else {
+                    onResult(ReturnObject(false, responseJson.getString("message")))
+                }
+            } catch (e: Exception) {
+                onResult(ReturnObject(false, e.toString()))
+            }
+        }
+    }
+
+    fun getExtraInfo(userID: Int, onResult: (ReturnObject) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        val request = Request.Builder()
+            .url("$uri/api/v1/auth/extrainfo?userID=$userID")
+            .headers(requestHeaders)
+            .get()
+            .build()
+
+
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                val response = client.newCall(request).execute()
+
+                val responseJson = JSONObject(response.body?.string())
+                if (responseJson.getBoolean("success")) {
+                    onResult(ReturnObject(true, "Retrieved extra info", data = responseJson.getJSONObject("data")))
+                } else {
+                    onResult(ReturnObject(false, responseJson.getString("message")))
+                }
+            } catch (e: Exception) {
+                onResult(ReturnObject(false, e.toString()))
+            }
+        }
+
+    }
+
+
+
+    fun deleteGroup(chatid: Int, onResult: (ReturnObject) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        val body = JSONObject().apply {
+            put("chatid", chatid)
+        }
+
+        val request = Request.Builder()
+            .url("$uri/api/v1/chat/group")
+            .headers(requestHeaders)
+            .delete(body.toString().toRequestBody())
+            .build()
+
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                val response = client.newCall(request).execute()
+
+                val responseJson = JSONObject(response.body?.string())
+
+                Log.d("Delete group", responseJson.toString())
+                onResult(ReturnObject(responseJson.getBoolean("success"), responseJson.getString("message")))
+            } catch (e: Exception) {
+                Log.e("Delete group", e.toString())
+                onResult(ReturnObject(false, e.toString()));
+            }
+
+        }
+    }
+
     fun newChat(onResult: (ReturnObject) -> Unit, participants: JSONArray, isGroupChat: Boolean, chatName: String? = null) {
         if (!isLoggedIn) {
             onResult(ReturnObject(false, "You have to log in first."));

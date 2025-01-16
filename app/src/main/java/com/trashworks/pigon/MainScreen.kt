@@ -1,6 +1,7 @@
 package com.trashworks.pigon
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -44,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -53,7 +55,19 @@ import com.trashworks.pigon.ui.theme.PigonTheme
 import io.socket.emitter.Emitter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import org.json.JSONArray
 import org.json.JSONObject
+
+fun removeIntFromJSONArray(jsonArray: JSONArray, valueToRemove: Int): JSONArray {
+    val resultArray = JSONArray()
+    for (i in 0 until jsonArray.length()) {
+        val item = jsonArray.optInt(i, Int.MIN_VALUE) // Safely get the integer value
+        if (item != valueToRemove) {
+            resultArray.put(item)
+        }
+    }
+    return resultArray
+}
 
 @Composable
 fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
@@ -69,7 +83,7 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
     DisposableEffect("") {
         scope.launch {
             APIHandler.getUserInfo { res ->
-                Log.d("MainScreen", "Got userinfo: ${res.data.toString()}")
+
                 if (!res.success) {
                     navController.navigate("loading_screen")
                     return@getUserInfo;
@@ -81,7 +95,7 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
 
         scope.launch {
             val token = Firebase.messaging.token.await();
-            Log.d("FBTOKEN", token)
+
             APIHandler.submitFirebaseToken(token, onResult = {res ->
                 Log.d("MainScreen", "Submitted firebase token with result: " + res.message)
             })
@@ -148,6 +162,7 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
 
     val insets = WindowInsets.systemBars.union(WindowInsets.ime)
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val context = LocalContext.current
 
     // Show a loading state or the actual UI
     if (isLoading) {
@@ -191,7 +206,7 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                                         if (success) {
                                             navController.navigate("loading_screen")
                                         } else {
-                                            //TODO(Tell the user about the problem)
+                                            Toast.makeText(context, "Failed to log out", Toast.LENGTH_SHORT).show()
                                         }
                                     })
                                 }
@@ -280,12 +295,16 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                             ) {
                                 if (chat.getInt("groupchat") == 0) {
                                     val participants = chat.getJSONArray("participants");
-                                    Log.d("Kecske", participants.toString())
-                                    val usrID = participants.get(participants.length() - 1);
+
+
+
                                     if (participants.length() == 1) {
                                         LoadImageFromUrl("https://pigon.ddns.net/api/v1/auth/pfp?id=0&smol=true")
                                     } else {
-                                        LoadImageFromUrl("https://pigon.ddns.net/api/v1/auth/pfp?id=$usrID&smol=true")
+                                        if (userDataLoaded) {
+                                            val usrID = removeIntFromJSONArray(participants, userData.getInt("id")).getInt(0)
+                                            LoadImageFromUrl("https://pigon.ddns.net/api/v1/auth/pfp?id=$usrID&smol=true")
+                                        }
                                     }
 
                                 } else {

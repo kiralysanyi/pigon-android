@@ -95,9 +95,7 @@ fun LoginScreen(
                         coroutineScope.launch {
                             dsWrapper.saveString(APIHandler.getCookies())
                         }
-                        if (!SocketConnection.initialized) {
-                            SocketConnection.init();
-                        }
+                        SocketConnection.init();
                         navController.navigate("main_screen")
                     } else {
                         dasMessage = res.message;
@@ -153,6 +151,7 @@ fun LoginScreen(
                                             if (res.success) {
                                                 coroutineScope.launch {
                                                     APIHandler.setCookies(APIHandler.getCookies(), dsWrapper)
+                                                    SocketConnection.init()
                                                     navController.navigate("main_screen")
                                                 }
                                             }

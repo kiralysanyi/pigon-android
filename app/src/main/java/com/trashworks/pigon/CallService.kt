@@ -1,12 +1,21 @@
 package com.trashworks.pigon
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Binder
+import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import androidx.media3.common.AudioAttributes
 import com.trashworks.pigon.SocketConnection.socket
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -38,11 +47,11 @@ fun initializePeerConnectionFactory(context: Context): PeerConnectionFactory {
             .createInitializationOptions()
     )
 
+
     val options = PeerConnectionFactory.Options()
-    val encoderFactory = DefaultVideoEncoderFactory(
-        EglBase.create().eglBaseContext, true, true
-    )
-    val decoderFactory = DefaultVideoDecoderFactory(EglBase.create().eglBaseContext)
+    val eglBase = EglBase.create()
+    val encoderFactory = DefaultVideoEncoderFactory(eglBase.eglBaseContext, true, true)
+    val decoderFactory = DefaultVideoDecoderFactory(eglBase.eglBaseContext)
 
     return PeerConnectionFactory.builder()
         .setOptions(options)
@@ -90,6 +99,41 @@ fun sendOffer(peerConnection: PeerConnection?, peerID: String?) {
 
 class CallService: Service() {
 
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Call Channel",
+                NotificationManager.IMPORTANCE_HIGH
+            )
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun createNotification(): Notification {
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, CallActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE
+        )
+
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setOngoing(true)
+            .setCategory(Notification.CATEGORY_CALL)
+            .setContentTitle("Ongoing Call")
+            .setContentText("Tap to return to call")
+            .setSmallIcon(R.mipmap.ic_launcher) // Replace with your icon
+            .setContentIntent(pendingIntent)
+            .build()
+    }
+
+    companion object {
+        private const val NOTIFICATION_ID = 1
+        private const val CHANNEL_ID = "call_channel"
+    }
+
     private val binder = LocalBinder()
 
     // Binder to return the service instance
@@ -101,12 +145,33 @@ class CallService: Service() {
         return binder
     }
 
-    override fun onCreate() {
-        super.onCreate()
-        context = this;
-        audioManager = context?.getSystemService(Context.AUDIO_SERVICE) as AudioManager;
+    private var wakeLock: PowerManager.WakeLock? = null;
+    override fun onDestroy() {
+        super.onDestroy()
+        wakeLock?.release()
     }
 
+    override fun onCreate() {
+        super.onCreate()
+
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "CallService:WakeLock"
+        )
+        wakeLock?.acquire() // Acquire the wake lock
+
+        // Create a notification channel (for Android Oreo and above)
+        createNotificationChannel()
+
+        // Create the notification
+        val notification = createNotification()
+
+        // Start foreground service
+        startForeground(NOTIFICATION_ID, notification)
+
+        context = this;
+    }
 
     private var callJson: JSONObject? = null;
     private var callID: String? = null;
@@ -154,41 +219,67 @@ class CallService: Service() {
     }
 
     public fun InitAudio() {
-        Log.d("WebRTC", "Initializing audio")
-        // Initialize WebRTC dependencies (if not already done)
-        val eglBase = EglBase.create()
-        val peerConnectionFactory = PeerConnectionFactory.builder()
-            .setVideoEncoderFactory(DefaultVideoEncoderFactory(eglBase.eglBaseContext, true, true))
-            .setVideoDecoderFactory(DefaultVideoDecoderFactory(eglBase.eglBaseContext))
-            .createPeerConnectionFactory()
 
-        // Step 1: Add an audio transceiver to predefine the track
-        val audioTransceiver = peerConnection?.addTransceiver(
-            MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO,
-            RtpTransceiver.RtpTransceiverInit(RtpTransceiver.RtpTransceiverDirection.SEND_RECV)
-        )
+        audioManager = context?.getSystemService(Context.AUDIO_SERVICE) as AudioManager;
 
-        // Step 2: Create an AudioSource with constraints
-        val audioConstraints = MediaConstraints().apply {
-            optional.add(MediaConstraints.KeyValuePair("googEchoCancellation", "true"))
-            optional.add(MediaConstraints.KeyValuePair("googAutoGainControl", "true"))
-            optional.add(MediaConstraints.KeyValuePair("googHighpassFilter", "true"))
-            optional.add(MediaConstraints.KeyValuePair("googNoiseSuppression", "true"))
+        val audioAttributes = android.media.AudioAttributes.Builder()
+            .setUsage(android.media.AudioAttributes.USAGE_VOICE_COMMUNICATION)
+            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+            .build()
+
+        val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(audioAttributes)
+            .setOnAudioFocusChangeListener { focusChange ->
+                // Handle audio focus changes here
+                Log.d("CallService", "Focus changed: ${focusChange}")
+            }
+            .build()
+
+        val result = audioManager?.requestAudioFocus(audioFocusRequest)
+
+        if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            Log.d("CallService", "Audio focus request granted")
+            Log.d("WebRTC", "Initializing audio")
+            // Initialize WebRTC dependencies (if not already done)
+            val eglBase = EglBase.create()
+            val peerConnectionFactory = PeerConnectionFactory.builder()
+                .setVideoEncoderFactory(DefaultVideoEncoderFactory(eglBase.eglBaseContext, true, true))
+                .setVideoDecoderFactory(DefaultVideoDecoderFactory(eglBase.eglBaseContext))
+                .createPeerConnectionFactory()
+
+            // Step 1: Add an audio transceiver to predefine the track
+            val audioTransceiver = peerConnection?.addTransceiver(
+                MediaStreamTrack.MediaType.MEDIA_TYPE_AUDIO,
+                RtpTransceiver.RtpTransceiverInit(RtpTransceiver.RtpTransceiverDirection.SEND_RECV)
+            )
+
+            // Step 2: Create an AudioSource with constraints
+            val audioConstraints = MediaConstraints().apply {
+                optional.add(MediaConstraints.KeyValuePair("googEchoCancellation", "true"))
+                optional.add(MediaConstraints.KeyValuePair("googAutoGainControl", "true"))
+                optional.add(MediaConstraints.KeyValuePair("googHighpassFilter", "true"))
+                optional.add(MediaConstraints.KeyValuePair("googNoiseSuppression", "true"))
+            }
+
+            audioSource = peerConnectionFactory.createAudioSource(audioConstraints)
+
+            // Step 3: Create an AudioTrack
+            val audioTrack = peerConnectionFactory.createAudioTrack("AUDIO_TRACK_ID", audioSource)
+
+            // Step 4: Set the audio track to the transceiver (instead of directly adding it)
+            audioTransceiver?.sender?.setTrack(audioTrack, false)
+
+            // Step 5: Enable the audio track
+            audioTrack.setEnabled(true)
+
+            // Optional logging for debugging
+            Log.d("WebRTC", "Audio track initialized and added to transceiver")
+        } else {
+            // Handle audio focus request denial
+            Log.e("CallService", "Audio focus request denied")
         }
 
-        audioSource = peerConnectionFactory.createAudioSource(audioConstraints)
 
-        // Step 3: Create an AudioTrack
-        val audioTrack = peerConnectionFactory.createAudioTrack("AUDIO_TRACK_ID", audioSource)
-
-        // Step 4: Set the audio track to the transceiver (instead of directly adding it)
-        audioTransceiver?.sender?.setTrack(audioTrack, false)
-
-        // Step 5: Enable the audio track
-        audioTrack.setEnabled(true)
-
-        // Optional logging for debugging
-        Log.d("WebRTC", "Audio track initialized and added to transceiver")
     }
 
     public fun InitWebRTC(onEnded: () -> Unit) {
@@ -492,6 +583,8 @@ class CallService: Service() {
             }
         }
     }
+
+
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

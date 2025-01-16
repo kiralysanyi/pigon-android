@@ -40,6 +40,7 @@ class CallActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        callService?.stopSelf();
         super.onDestroy()
         unregisterReceiver(closeReceiver)
         if (isBound) {

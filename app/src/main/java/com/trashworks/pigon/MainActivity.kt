@@ -1,6 +1,7 @@
 package com.trashworks.pigon
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -121,11 +122,40 @@ fun requestOverlayPermission(context: Context) {
     }
 }
 
+fun checkAndRequestPermissions(activity: Activity) {
+    val permissions = arrayOf(
+        Manifest.permission.INTERNET,
+        Manifest.permission.POST_NOTIFICATIONS,
+        Manifest.permission.CAMERA,
+        Manifest.permission.RECORD_AUDIO,
+        Manifest.permission.MODIFY_AUDIO_SETTINGS,
+        Manifest.permission.SYSTEM_ALERT_WINDOW,
+        Manifest.permission.FOREGROUND_SERVICE,
+        Manifest.permission.FOREGROUND_SERVICE_PHONE_CALL,
+        Manifest.permission.MANAGE_OWN_CALLS
+    )
+
+    val permissionsToRequest = mutableListOf<String>()
+    for (permission in permissions) {
+        if (ContextCompat.checkSelfPermission(activity, permission) != PackageManager.PERMISSION_GRANTED) {
+            permissionsToRequest.add(permission)
+        }
+    }
+
+    if (permissionsToRequest.isNotEmpty()) {
+        ActivityCompat.requestPermissions(
+            activity,
+            permissionsToRequest.toTypedArray(),
+            69
+        )
+    }
+}
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
+        checkAndRequestPermissions(this);
 
         super.onCreate(savedInstanceState)
         val activityContext = this;
@@ -197,6 +227,10 @@ fun PigonAppNavGraph(activityContext: Context, activity: MainActivity) {
 
         composable("newchat_screen") {
             NewChatScreen(navController)
+        }
+
+        composable("newgroup_screen") {
+            NewGroupScreen(navController)
         }
 
         composable<Group> { backStackEntry ->
