@@ -249,7 +249,7 @@ fun PigonAppNavGraph(activityContext: Context, activity: MainActivity) {
 
         composable<Chat> { backStackEntry ->
             val chat: Chat = backStackEntry.toRoute();
-            ChatScreen(navController, chat.chatInfo);
+            ChatScreen(navController, chat.chatInfo, activity);
         }
     }
 

@@ -95,7 +95,7 @@ fun decodeHTML(html: String): String {
 }
 
 @Composable
-fun ChatScreen(navController: NavController, chatInfo: String) {
+fun ChatScreen(navController: NavController, chatInfo: String, activityContext: MainActivity) {
     val chatJson = JSONObject(chatInfo)
     val chatID = chatJson.getInt("chatid");
     var userInfo by remember {
@@ -438,6 +438,7 @@ fun ChatScreen(navController: NavController, chatInfo: String) {
                                                         }
                                                         context.startActivity(intent)
                                                         SocketConnection.incall = true;
+                                                        activityContext.finish()
                                                     }
                                                 }
                                             })
