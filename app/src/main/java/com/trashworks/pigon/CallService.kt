@@ -25,6 +25,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import org.webrtc.AudioSource
+import org.webrtc.AudioTrack
+import org.webrtc.Camera1Enumerator
+import org.webrtc.CameraEnumerator
+import org.webrtc.CameraVideoCapturer
 import org.webrtc.DataChannel
 import org.webrtc.DefaultVideoDecoderFactory
 import org.webrtc.DefaultVideoEncoderFactory
@@ -36,13 +40,18 @@ import org.webrtc.MediaStreamTrack
 import org.webrtc.PeerConnection
 import org.webrtc.PeerConnectionFactory
 import org.webrtc.RtpReceiver
+import org.webrtc.RtpSender
 import org.webrtc.RtpTransceiver
 import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
+import org.webrtc.SurfaceTextureHelper
+import org.webrtc.VideoCapturer
+import org.webrtc.VideoSource
+import org.webrtc.VideoTrack
 import java.util.LinkedList
 
 
-class CallService: Service() {
+class CallService : Service() {
 
     private fun initializePeerConnectionFactory(context: Context): PeerConnectionFactory {
         PeerConnectionFactory.initialize(
@@ -150,6 +159,7 @@ class CallService: Service() {
     private var wakeLock: PowerManager.WakeLock? = null;
     override fun onDestroy() {
         super.onDestroy()
+        videoCapturer?.stopCapture()
         wakeLock?.release()
     }
 
@@ -187,6 +197,7 @@ class CallService: Service() {
     private var callJson: JSONObject? = null;
     private var callID: String? = null;
     private var audioSource: AudioSource? = null;
+    private var videoSource: VideoSource? = null;
     private var peerRegistered = false;
     private var initiator: String? = null;
     private var peerID: String? = null;
@@ -200,7 +211,9 @@ class CallService: Service() {
     private var isInitiator = false;
 
     fun hangUP() {
+        videoCapturer?.stopCapture()
         SocketConnection.socket.off("relay")
+        videoSource?.dispose()
         audioSource?.dispose()
         peerConnection?.close()
         SocketConnection.incall = false;
@@ -208,7 +221,13 @@ class CallService: Service() {
         this.stopSelf()
     }
 
-    fun setData(isinit: Boolean, callInfo: String, peerid: String, deviceid: String, initiatorid: String) {
+    fun setData(
+        isinit: Boolean,
+        callInfo: String,
+        peerid: String,
+        deviceid: String,
+        initiatorid: String
+    ) {
         callJson = JSONObject(callInfo)
         isInitiator = isinit;
         deviceID = deviceid;
@@ -255,7 +274,13 @@ class CallService: Service() {
             // Initialize WebRTC dependencies (if not already done)
             val eglBase = EglBase.create()
             val peerConnectionFactory = PeerConnectionFactory.builder()
-                .setVideoEncoderFactory(DefaultVideoEncoderFactory(eglBase.eglBaseContext, true, true))
+                .setVideoEncoderFactory(
+                    DefaultVideoEncoderFactory(
+                        eglBase.eglBaseContext,
+                        true,
+                        true
+                    )
+                )
                 .setVideoDecoderFactory(DefaultVideoDecoderFactory(eglBase.eglBaseContext))
                 .createPeerConnectionFactory()
 
@@ -292,6 +317,98 @@ class CallService: Service() {
         }
 
 
+    }
+
+
+    var onLocalVideo: ((VideoTrack) -> Unit)? = null
+    var onLocalVideoEnded: (() -> Unit)? = null
+    var onRemoteVideo: ((VideoTrack) -> Unit)? = null
+    var onRemoteVideoEnded: (() -> Unit)? = null
+
+    private fun createCameraCapturer(enumerator: CameraEnumerator): CameraVideoCapturer? {
+        val deviceNames = enumerator.deviceNames
+
+        // Try to find a front-facing camera
+        for (deviceName in deviceNames) {
+            if (enumerator.isFrontFacing(deviceName)) {
+                val videoCapturer = enumerator.createCapturer(deviceName, null)
+                if (videoCapturer != null) {
+                    return videoCapturer
+                }
+            }
+        }
+
+        // If no front-facing camera is found, try to find a back-facing camera
+        for (deviceName in deviceNames) {
+            if (enumerator.isBackFacing(deviceName)) {
+                val videoCapturer = enumerator.createCapturer(deviceName, null)
+                if (videoCapturer != null) {
+                    return videoCapturer
+                }
+            }
+        }
+
+        // If no camera is found, return null
+        return null
+    }
+
+    private var videoCapturer: VideoCapturer? = null;
+    private var isCameraEnabled = false;
+    private var videoTrack: VideoTrack? = null;
+    private var videoSender: RtpSender? = null;
+    private fun InitVideo() {
+        Log.d("WebRTC", "Initializing video")
+        // Initialize WebRTC dependencies (if not already done)
+        val eglBase = EglBase.create()
+        val peerConnectionFactory = PeerConnectionFactory.builder()
+            .setVideoEncoderFactory(DefaultVideoEncoderFactory(eglBase.eglBaseContext, true, true))
+            .setVideoDecoderFactory(DefaultVideoDecoderFactory(eglBase.eglBaseContext))
+            .createPeerConnectionFactory()
+
+        videoSource = peerConnectionFactory.createVideoSource(false)
+
+        videoCapturer = createCameraCapturer(Camera1Enumerator(false)) // or Camera2Enumerator
+        videoCapturer?.initialize(
+            SurfaceTextureHelper.create("CaptureThread", eglBase.eglBaseContext),
+            context,
+            videoSource?.capturerObserver
+        )
+        videoCapturer?.startCapture(1280, 720, 30) // Adjust resolution and FPS as needed
+
+        videoTrack = peerConnectionFactory.createVideoTrack("VIDEO_TRACK_ID", videoSource)
+
+
+        videoTrack?.setEnabled(true)
+        Log.d("WebRTC", "Video track state: ${videoTrack?.state()}")
+        videoSender = peerConnection?.addTrack(videoTrack)
+
+        onLocalVideo?.let { it(videoTrack!!) }
+
+
+
+
+        // Optional logging for debugging
+        Log.d("WebRTC", "Audio track initialized and added to transceiver")
+    }
+
+    private fun StopVideo() {
+        peerConnection?.removeTrack(videoSender);
+        videoCapturer?.stopCapture()
+        onLocalVideoEnded?.let { it() }
+    }
+
+
+    fun ToggleCamera() {
+        if (isCameraEnabled) {
+            isCameraEnabled = false;
+            //disable camera
+            StopVideo()
+
+        } else {
+            isCameraEnabled = true;
+            //enable camera
+            InitVideo()
+        }
     }
 
     public fun InitWebRTC(onEnded: () -> Unit) {
@@ -449,13 +566,19 @@ class CallService: Service() {
                 Log.d("WebRTC", "Processing: ${data.toString()}")
 
                 if (data.getString("type") == "offer") {
-                    val sdp = SessionDescription(SessionDescription.Type.OFFER, JSONObject(data.getString("offer")).getString("sdp"))
+                    val sdp = SessionDescription(
+                        SessionDescription.Type.OFFER,
+                        JSONObject(data.getString("offer")).getString("sdp")
+                    )
                     negotiationQueue.add {
                         if (peerConnection?.signalingState() == PeerConnection.SignalingState.STABLE) {
                             setRemote(sdp)
                             createAnswer()
                         } else {
-                            Log.w("WebRTC", "Ignoring offer due to invalid PeerConnection state: ${peerConnection?.signalingState()}")
+                            Log.w(
+                                "WebRTC",
+                                "Ignoring offer due to invalid PeerConnection state: ${peerConnection?.signalingState()}"
+                            )
                         }
                     }
                     processNegotiationQueue()
@@ -541,19 +664,30 @@ class CallService: Service() {
                         receiver: RtpReceiver?,
                         mediaStreams: Array<out MediaStream>?
                     ) {
-                        mediaStreams?.forEach { mediaStream ->
-                            // Iterate through the audio tracks in the MediaStream
-                            mediaStream.audioTracks.forEach { audioTrack ->
-                                // Enable the audio track
-                                audioTrack.setEnabled(true)
+                        Log.d("WebRTC", "Track added by remote")
 
-                                // Optionally log or debug
-                                Log.d("WebRTC", "Audio track added: ${audioTrack.id()}")
+                        // Handle audio or video track from the RtpReceiver directly
+                        val track = receiver?.track()
+                        if (track is VideoTrack) {
+                            track.setEnabled(true)
+                            Log.d("WebRTC", "Video track added: ${track.id()} State: ${track.state()}")
 
-
-                                // WebRTC automatically plays the audio through the device speakers
-                            }
+                            // Pass the track to your rendering logic
+                            onRemoteVideo?.let {
+                                Log.d("WebRTC", "Rendering remote video track")
+                                it(track)
+                            } ?: Log.e("WebRTC", "onRemoteVideo is not set!")
+                        } else if (track is AudioTrack) {
+                            track.setEnabled(true)
+                            Log.d("WebRTC", "Audio track added: ${track.id()}")
+                        } else {
+                            Log.e("WebRTC", "Unknown track type")
                         }
+                    }
+
+                    override fun onRemoveTrack(receiver: RtpReceiver?) {
+                        onRemoteVideoEnded?.let { it() }
+                        super.onRemoveTrack(receiver)
                     }
 
                     override fun onAddStream(stream: MediaStream?) {
@@ -569,6 +703,7 @@ class CallService: Service() {
                     override fun onRemoveStream(stream: MediaStream?) {
                         Log.d("WebRTC", "MediaStream removed")
                         // Handle stream removal if necessary.
+                        onRemoteVideoEnded?.let { it() }
                     }
 
                     override fun onDataChannel(dataChannel: DataChannel?) {
@@ -607,7 +742,6 @@ class CallService: Service() {
             })
 
 
-
             //initialize audio
             InitAudio()
 
@@ -618,9 +752,8 @@ class CallService: Service() {
     }
 
 
-
     @OptIn(DelicateCoroutinesApi::class)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-                return super.onStartCommand(intent, flags, startId)
+        return super.onStartCommand(intent, flags, startId)
     }
 }

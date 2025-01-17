@@ -16,10 +16,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
@@ -52,7 +54,9 @@ import java.util.LinkedList
 import java.util.Queue
 import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
 
 @Composable
@@ -194,8 +198,31 @@ fun CallScreen(callInfo: String, isInitiator: Boolean = false, displayName: Stri
         callService?.setSpeaker(isSpeaker);
     }
 
+    var renderLocalVideo by remember { mutableStateOf(false) }
+    var localVideoTrack by remember { mutableStateOf<VideoTrack?>(null) }
+
+    var renderRemoteVideo by remember { mutableStateOf(false) }
+    var remoteVideoTrack by remember { mutableStateOf<VideoTrack?>(null) }
+
     LaunchedEffect("") {
         callService?.preInit()
+        callService?.onLocalVideo = {videoTrack ->
+            localVideoTrack = videoTrack;
+            renderLocalVideo = true;
+        }
+        callService?.onLocalVideoEnded = {
+            renderLocalVideo = false;
+        }
+
+        callService?.onRemoteVideo = { videoTrack ->
+            remoteVideoTrack = videoTrack
+            renderRemoteVideo = true;
+        }
+
+        callService?.onRemoteVideoEnded = {
+            renderRemoteVideo = false;
+        }
+
         while (true) {
             delay(1000L) // Wait for 1 second
             seconds++
@@ -210,6 +237,8 @@ fun CallScreen(callInfo: String, isInitiator: Boolean = false, displayName: Stri
         }
     }
 
+
+
     LaunchedEffect(initiator, deviceID, peerID, peerRegistered) {
         Log.d("WebRTC", "Init: $initiator, $deviceID, $peerID, $peerRegistered, $isInitiator")
         if (peerID != null && deviceID != null && peerRegistered && initiator != null) {
@@ -223,8 +252,6 @@ fun CallScreen(callInfo: String, isInitiator: Boolean = false, displayName: Stri
             modifier = Modifier
                 .background(MaterialTheme.colorScheme.background)
                 .fillMaxSize()
-                .navigationBarsPadding()
-                .statusBarsPadding()
         ) {
             if (!callAccepted) {
                 Text(
@@ -232,11 +259,13 @@ fun CallScreen(callInfo: String, isInitiator: Boolean = false, displayName: Stri
                     modifier = Modifier
                         .padding(top = 80.dp)
                         .align(Alignment.TopCenter),
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontSize = 50.sp
                 )
                 Row(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
                 ) {
                     Button(onClick = {
                         val responseJson = JSONObject()
@@ -282,7 +311,8 @@ fun CallScreen(callInfo: String, isInitiator: Boolean = false, displayName: Stri
                 Column(
                     modifier = Modifier
                         .padding(top = 80.dp)
-                        .align(Alignment.TopCenter),
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
@@ -300,12 +330,61 @@ fun CallScreen(callInfo: String, isInitiator: Boolean = false, displayName: Stri
                     )
                 }
 
+                Box(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    // Render the remote video (background layer)
+                    if (renderRemoteVideo && renderLocalVideo) {
+                        remoteVideoTrack?.let {
+                            VideoRenderer(it, eglBase = EglBase.create(), modifier = Modifier
+                                .fillMaxSize()
+                                .zIndex(0f) // Remote video on the bottom
+                            )
+                        }
+
+                        localVideoTrack?.let {
+                            VideoRenderer(it, eglBase = EglBase.create(), modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .widthIn(max = 130.dp)
+                                .heightIn(max = 200.dp)
+                                .statusBarsPadding()
+                                .zIndex(1f) // Local video on top
+                            )
+                        }
+                    }
+
+                    // Render the local video (foreground layer)
+                    if (renderLocalVideo && !renderRemoteVideo) {
+                        localVideoTrack?.let {
+                            VideoRenderer(it, eglBase = EglBase.create(), modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .widthIn(max = 130.dp)
+                                .heightIn(max = 200.dp)
+                                .statusBarsPadding()
+                                .zIndex(1f) // Local video on top
+                            )
+                        }
+                    }
+
+                    if (renderRemoteVideo && !renderLocalVideo) {
+                        remoteVideoTrack?.let {
+                            VideoRenderer(
+                                it, eglBase = EglBase.create(), modifier = Modifier
+                                    .fillMaxSize()
+                                    .zIndex(0f) // Remote video on the bottom
+                            )
+                        }
+                    }
+                }
+
+
 
 
 
                 Row(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
                 ) {
                     Icon(Icons.Filled.PhoneDisabled,"Hang up", tint = MaterialTheme.colorScheme.error, modifier = Modifier
                         .clickable {
@@ -322,6 +401,14 @@ fun CallScreen(callInfo: String, isInitiator: Boolean = false, displayName: Stri
                     if (isSpeaker) {
                         speakerIcon = Icons.AutoMirrored.Filled.VolumeDown
                     }
+
+                    Icon(Icons.Filled.Videocam, "Camera toggle",modifier = Modifier
+                        .clickable {
+                            callService?.ToggleCamera()
+                        }
+                        .height(50.dp)
+                        .width(50.dp),
+                        tint = MaterialTheme.colorScheme.onBackground)
 
                     Icon(speakerIcon, "Speaker phone toggle", modifier = Modifier
                         .clickable {
