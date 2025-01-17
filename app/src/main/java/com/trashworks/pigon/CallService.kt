@@ -44,6 +44,7 @@ import org.webrtc.RtpSender
 import org.webrtc.RtpTransceiver
 import org.webrtc.SdpObserver
 import org.webrtc.SessionDescription
+import org.webrtc.SoftwareVideoDecoderFactory
 import org.webrtc.SurfaceTextureHelper
 import org.webrtc.VideoCapturer
 import org.webrtc.VideoSource
@@ -64,7 +65,7 @@ class CallService : Service() {
         val options = PeerConnectionFactory.Options()
         val eglBase = EglBase.create()
         val encoderFactory = DefaultVideoEncoderFactory(eglBase.eglBaseContext, true, true)
-        val decoderFactory = DefaultVideoDecoderFactory(eglBase.eglBaseContext)
+        val decoderFactory = SoftwareVideoDecoderFactory()
 
         return PeerConnectionFactory.builder()
             .setOptions(options)
@@ -281,7 +282,7 @@ class CallService : Service() {
                         true
                     )
                 )
-                .setVideoDecoderFactory(DefaultVideoDecoderFactory(eglBase.eglBaseContext))
+                .setVideoDecoderFactory(SoftwareVideoDecoderFactory())
                 .createPeerConnectionFactory()
 
             // Step 1: Add an audio transceiver to predefine the track
@@ -362,7 +363,7 @@ class CallService : Service() {
         val eglBase = EglBase.create()
         val peerConnectionFactory = PeerConnectionFactory.builder()
             .setVideoEncoderFactory(DefaultVideoEncoderFactory(eglBase.eglBaseContext, true, true))
-            .setVideoDecoderFactory(DefaultVideoDecoderFactory(eglBase.eglBaseContext))
+            .setVideoDecoderFactory(SoftwareVideoDecoderFactory())
             .createPeerConnectionFactory()
 
         videoSource = peerConnectionFactory.createVideoSource(false)
