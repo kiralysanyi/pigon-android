@@ -396,6 +396,12 @@ class CallService : Service() {
         peerConnection?.removeTrack(videoSender);
         videoCapturer?.stopCapture()
         onLocalVideoEnded?.let { it() }
+        socket.emit("relay", JSONObject().apply {
+            put("deviceID", peerID)
+            put("data", JSONObject().apply {
+                put("type", "videostopped")
+            })
+        })
     }
 
 

@@ -1,6 +1,7 @@
 package com.trashworks.pigon
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -36,9 +37,11 @@ class DataStoreWrapper(private val context: Context) {
                 .map { preferences -> preferences[STRING_KEY] }
                 .first()
         } else {
-            return context.dataStore.data
+            val data = context.dataStore.data
                 .map { preferences -> preferences[stringPreferencesKey(key)] }
                 .first()
+            Log.d("getString", "$data")
+            return data
         }
 
     }

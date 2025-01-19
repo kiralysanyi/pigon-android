@@ -119,10 +119,14 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                 }
             }
         }
+
+        SocketConnection.socket.on("newchat", listener)
+
         SocketConnection.socket.on("message", listener)
 
         onDispose {
             SocketConnection.socket.off("message", listener)
+            SocketConnection.socket.off("newchat", listener)
         }
     }
 

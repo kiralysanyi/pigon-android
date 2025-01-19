@@ -59,15 +59,20 @@ import coil.compose.rememberImagePainter
 import coil.request.ImageRequest
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Send
@@ -83,6 +88,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavType
@@ -137,7 +143,11 @@ fun checkAndRequestPermissions(activity: Activity) {
 
     val permissionsToRequest = mutableListOf<String>()
     for (permission in permissions) {
-        if (ContextCompat.checkSelfPermission(activity, permission) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(
+                activity,
+                permission
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
             permissionsToRequest.add(permission)
         }
     }
@@ -175,13 +185,24 @@ class MainActivity : ComponentActivity() {
 
 fun RequestNotificationPermission(context: Context, activity: MainActivity) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        val hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        val hasPermission = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
 
         if (!hasPermission) {
-            Toast.makeText(context, "Please grant appear on top permission to receive calls in the background", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                context,
+                "Please grant appear on top permission to receive calls in the background",
+                Toast.LENGTH_LONG
+            ).show()
             GlobalScope.launch {
                 delay(1000L)
-                ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0)
+                ActivityCompat.requestPermissions(
+                    activity,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    0
+                )
             }
         }
     }
@@ -195,7 +216,11 @@ data class Chat(val chatInfo: String)
 data class Group(val chatInfo: String? = null)
 
 @Serializable
-data class Call(val callInfo: String, val isInitiator: Boolean = false, val displayName: String? = null)
+data class Call(
+    val callInfo: String,
+    val isInitiator: Boolean = false,
+    val displayName: String? = null
+)
 
 @Composable
 fun PigonAppNavGraph(activityContext: Context, activity: MainActivity) {
@@ -257,47 +282,177 @@ fun PigonAppNavGraph(activityContext: Context, activity: MainActivity) {
     ConnectionChecker(LocalContext.current, navController)
 }
 
+fun getEula(): String {
+    return """End-User License Agreement (EULA) for Pigon
+
+Last Updated: 2025.01.19
+
+This End-User License Agreement ("EULA") is a legal agreement between you ("User") and [Your Company Name] ("Company") for the use of the Pigon messaging application ("App"). By downloading, installing, or using the App, you agree to be bound by the terms of this EULA. If you do not agree to these terms, do not use the App.
+
+1. License Grant
+
+The Company grants you a non-exclusive, non-transferable, revocable license to use the App for personal, non-commercial purposes in accordance with this EULA.
+
+2. Data Collection and Usage
+
+2.1 Crash and Performance Monitoring
+
+The App uses Firebase Crashlytics to collect data about app crashes and performance issues. This data helps us improve the App’s stability and functionality.
+
+2.2 Analytics
+
+The App uses Google Analytics to collect anonymized data about usage patterns and user interactions to enhance the user experience and guide future development.
+
+2.3 Message Access
+
+While the App is designed to provide private messaging, messages may be accessible to the Company on the server side if needed for:
+
+Investigating abuse or misuse of the App.
+
+Ensuring compliance with legal obligations or responding to valid legal requests.
+
+For more details, please review our Privacy Policy [insert link if available].
+
+3. User Responsibilities
+
+You agree to:
+
+Use the App only for lawful purposes.
+
+Not use the App to harass, defame, or harm others.
+
+Maintain the confidentiality of your account credentials.
+
+4. Restrictions
+
+You may not:
+
+Reverse engineer, decompile, or disassemble the App.
+
+Use the App to transmit malicious software or unauthorized content.
+
+5. Termination
+
+The Company reserves the right to terminate your access to the App at any time for any reason, including but not limited to breach of this EULA.
+
+6. Disclaimer of Warranties
+
+The App is provided "as is" without warranties of any kind, either express or implied, including but not limited to implied warranties of merchantability or fitness for a particular purpose.
+
+7. Limitation of Liability
+
+To the maximum extent permitted by law, the Company shall not be liable for any damages arising out of the use or inability to use the App, including but not limited to incidental, consequential, or indirect damages.
+
+8. Governing Law
+
+This EULA shall be governed by and construed in accordance with the laws of [Your Country/State], without regard to its conflict of law principles.
+
+9. Changes to this EULA
+
+The Company reserves the right to update or modify this EULA at any time. Continued use of the App after changes are made constitutes your acceptance of the updated terms.
+
+10. Contact Information
+
+If you have any questions or concerns about this EULA, please contact us at kiralysandor1986@gmail.com.
+
+By using Pigon, you acknowledge that you have read, understood, and agree to be bound by this EULA."""
+}
 
 
 @Composable
 fun LoadingScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
     val scope = rememberCoroutineScope()
-    LaunchedEffect(Unit) {
-        if (dsWrapper.hasString()) {
-            val cookies = dsWrapper.getString();
-            if (cookies != null) {
-                Log.d("Setcookie", "setting cookies")
-                APIHandler.setCookies(cookies)
-                scope.launch {
-                    APIHandler.getUserInfo { res ->
-                        if (!res.success) {
-                            navController.navigate("login_screen")
-                        } else {
-                            SocketConnection.init()
-                            navController.navigate("main_screen")
+    var eula by remember { mutableStateOf(false) }
+    LaunchedEffect(eula) {
+        if (dsWrapper.hasString("eula") && !eula) {
+
+            if (dsWrapper.getString("eula") == "true") {
+                eula = true;
+            }
+        }
+
+        if (eula) {
+            if (dsWrapper.hasString()) {
+                val cookies = dsWrapper.getString();
+                if (cookies != null) {
+                    Log.d("Setcookie", "setting cookies")
+                    APIHandler.setCookies(cookies)
+                    scope.launch {
+                        APIHandler.getUserInfo { res ->
+                            if (!res.success) {
+                                navController.navigate("login_screen")
+                            } else {
+                                SocketConnection.init()
+                                navController.navigate("main_screen")
+                            }
                         }
                     }
+
+                } else {
+                    navController.navigate("login_screen")
                 }
 
             } else {
+
                 navController.navigate("login_screen")
             }
-
-        } else {
-
-            navController.navigate("login_screen")
         }
+
+
     }
 
     PigonTheme {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
+        if (eula) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.background)
+                    .fillMaxSize()
+                    .navigationBarsPadding()
+                    .statusBarsPadding()
+            ) {
+                Text(
+                    "Before using pigon you have to accept our eula!",
+                    color = MaterialTheme.colorScheme.onBackground,
+                    fontSize = 30.sp
+                )
+
+                Text(
+                    getEula(),
+                    modifier = Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .verticalScroll(rememberScrollState())
+                        .weight(1f)
+                    ,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(onClick = {
+                        scope.launch {
+                            dsWrapper.saveString("true", "eula")
+                            eula = true;
+                        }
+
+                    }) {
+                        Text("Accept")
+                    }
+                }
+            }
         }
+
     }
 
 }
