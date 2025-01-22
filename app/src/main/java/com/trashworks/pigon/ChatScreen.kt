@@ -759,6 +759,16 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
         if(showProfileInfo && chatJson.getInt("groupchat") == 0) {
             ProfileViewer(pfpID, chatJson) { showProfileInfo = false }
         }
+
+        if(showProfileInfo && chatJson.getInt("groupchat") == 1) {
+            GroupInfo(chatJson) { leftGroup ->
+                if (leftGroup) {
+                    scope.launch { navController.navigate("main_screen"); }
+                } else {
+                    showProfileInfo = false
+                }
+            }
+        }
     }
 }
 

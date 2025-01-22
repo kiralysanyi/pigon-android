@@ -24,7 +24,10 @@ object SocketConnection {
     var acceptedCall = false;
     var socket: Socket = IO.socket("https://pigon.ddns.net", socketOptions);
 
-    fun init() {
+    fun init(fullInit: Boolean? = false) {
+        if (fullInit == true) {
+            initialized = false;
+        }
         if (!initialized) { // Check if the socket has been initialized before
             socketOptions = IO.Options().apply {
                 extraHeaders = singletonMap("Cookie", singletonList(APIHandler.getCookies()))

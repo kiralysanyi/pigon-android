@@ -80,6 +80,35 @@ object APIHandler {
 
     }
 
+    fun leaveGroup(chatID: Int, onResult: (ReturnObject) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        GlobalScope.launch(Dispatchers.IO) {
+            val body = JSONObject().apply {
+                put("chatid", chatID)
+            }
+            try {
+                val request = Request.Builder()
+                    .url("$uri/api/v1/chat/leave")
+                    .headers(requestHeaders)
+                    .post(body.toString().toRequestBody())
+                    .build()
+
+                val response = client.newCall(request).execute()
+
+                val responseJson = JSONObject(response.body?.string())
+                onResult(ReturnObject(responseJson.getBoolean("success"), responseJson.getString("message")))
+            } catch (e: Exception) {
+                Log.e("LeaveGroup", e.toString())
+                onResult(ReturnObject(false, e.toString()))
+            }
+
+        }
+    }
+
     fun submitFirebaseToken(token: String, onResult: (ReturnObject) -> Unit) {
         if (!isLoggedIn) {
             onResult(ReturnObject(false, "You have to log in first."));
