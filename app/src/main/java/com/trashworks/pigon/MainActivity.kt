@@ -363,12 +363,18 @@ By using Pigon, you acknowledge that you have read, understood, and agree to be 
 fun LoadingScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
     val scope = rememberCoroutineScope()
     var eula by remember { mutableStateOf(false) }
+    var showEula by remember { mutableStateOf(false) }
     LaunchedEffect(eula) {
         if (dsWrapper.hasString("eula") && !eula) {
-
             if (dsWrapper.getString("eula") == "true") {
                 eula = true;
+            } else {
+                showEula = true;
             }
+        }
+
+        if (!dsWrapper.hasString("eula")) {
+            showEula = true;
         }
 
         if (eula) {
@@ -402,16 +408,17 @@ fun LoadingScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
     }
 
     PigonTheme {
-        if (eula) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
-        } else {
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+
+        if (showEula) {
             Column(
                 modifier = Modifier
                     .background(MaterialTheme.colorScheme.background)
@@ -430,8 +437,7 @@ fun LoadingScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                     modifier = Modifier
                         .horizontalScroll(rememberScrollState())
                         .verticalScroll(rememberScrollState())
-                        .weight(1f)
-                    ,
+                        .weight(1f),
                     color = MaterialTheme.colorScheme.onBackground
                 )
 
