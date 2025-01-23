@@ -30,6 +30,7 @@ credentials = "1.5.0-beta01"
 credentialsPlayServicesAuth = "1.5.0-beta01"
 transportApi = "3.0.0"
 materialIconsExtended = "1.7.6"
+accompanistNavigationAnimation = "0.36.0"
 
 [libraries]
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version = "0.37.0" }
@@ -71,6 +72,7 @@ androidx-credentials = { group = "androidx.credentials", name = "credentials", v
 androidx-credentials-play-services-auth = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentialsPlayServicesAuth" }
 transport-api = { group = "com.google.android.datatransport", name = "transport-api", version.ref = "transportApi" }
 androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "materialIconsExtended" }
+accompanist-navigation-animation = { group = "com.google.accompanist", name = "accompanist-navigation-animation", version.ref = "accompanistNavigationAnimation" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

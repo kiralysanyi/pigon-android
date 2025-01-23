@@ -22,6 +22,12 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.collection.LruCache
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -233,6 +239,10 @@ fun PigonAppNavGraph(activityContext: Context, activity: MainActivity) {
     NavHost(
         navController = navController,
         startDestination = "loading_screen",
+        enterTransition = { defaultEnterTransition() },
+        exitTransition = { defaultExitTransition() },
+        popEnterTransition = { defaultPopEnterTransition() },
+        popExitTransition = { defaultPopExitTransition() },
         modifier = Modifier.background(MaterialTheme.colorScheme.background)
     ) {
         composable("loading_screen") {
@@ -284,6 +294,22 @@ fun PigonAppNavGraph(activityContext: Context, activity: MainActivity) {
 
 
     ConnectionChecker(LocalContext.current, navController)
+}
+
+private fun defaultEnterTransition(): EnterTransition {
+    return slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(500))
+}
+
+private fun defaultExitTransition(): ExitTransition {
+    return slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(500))
+}
+
+private fun defaultPopEnterTransition(): EnterTransition {
+    return slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(500))
+}
+
+private fun defaultPopExitTransition(): ExitTransition {
+    return slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(500))
 }
 
 fun getEula(): String {

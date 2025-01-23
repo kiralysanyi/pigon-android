@@ -7,6 +7,13 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -193,7 +200,7 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
     var callJson: JSONObject? by remember { mutableStateOf(null) }
 
     val context = LocalContext.current.applicationContext;
-    var pfpID by remember { mutableStateOf(0)}
+    var pfpID by remember { mutableStateOf(0) }
 
     LaunchedEffect(isAtTop) {
         if (isAtTop && !isLoading && !reachedLastPage) {
@@ -282,7 +289,14 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                             Log.d("Sendfile", filename)
                             SocketConnection.socket.emit(
                                 "message",
-                                JSONObject("{\"chatID\": $chatID, \"message\": {\"type\": \"${getMediaType(context, uri)}\", \"content\": \"$filename\"}}")
+                                JSONObject(
+                                    "{\"chatID\": $chatID, \"message\": {\"type\": \"${
+                                        getMediaType(
+                                            context,
+                                            uri
+                                        )
+                                    }\", \"content\": \"$filename\"}}"
+                                )
                             )
                             showSendingOverlay = false;
                         },
@@ -678,7 +692,17 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
             }
         }
 
-        if (isImageViewerOpen == true) {
+        AnimatedVisibility(
+            visible = isImageViewerOpen,
+            enter = slideInVertically(
+                initialOffsetY = { it }, // Starts off-screen to the left
+                animationSpec = tween(durationMillis = 500) // Animation duration
+            ),
+            exit = slideOutVertically(
+                targetOffsetY = { it }, // Slides out to the left
+                animationSpec = tween(durationMillis = 500)
+            )
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -702,7 +726,17 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
             }
         }
 
-        if (isVideoViewerOpen == true) {
+        AnimatedVisibility(
+            visible = isVideoViewerOpen,
+            enter = slideInVertically(
+                initialOffsetY = { it }, // Starts off-screen to the left
+                animationSpec = tween(durationMillis = 500) // Animation duration
+            ),
+            exit = slideOutVertically(
+                targetOffsetY = { it }, // Slides out to the left
+                animationSpec = tween(durationMillis = 500)
+            )
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -726,7 +760,17 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
             }
         }
 
-        if (openEditModal) {
+        AnimatedVisibility(
+            visible = openEditModal,
+            enter = slideInVertically(
+                initialOffsetY = { it }, // Starts off-screen to the left
+                animationSpec = tween(durationMillis = 500) // Animation duration
+            ),
+            exit = slideOutVertically(
+                targetOffsetY = { it }, // Slides out to the left
+                animationSpec = tween(durationMillis = 500)
+            )
+        ) {
             EditModal(chatJson, closeCallback = { openEditModal = false }, navController)
         }
 
@@ -760,11 +804,11 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
             }
         }
 
-        if(showProfileInfo && chatJson.getInt("groupchat") == 0) {
+        if (showProfileInfo && chatJson.getInt("groupchat") == 0) {
             ProfileViewer(pfpID, chatJson) { showProfileInfo = false }
         }
 
-        if(showProfileInfo && chatJson.getInt("groupchat") == 1) {
+        if (showProfileInfo && chatJson.getInt("groupchat") == 1) {
             GroupInfo(chatJson) { leftGroup ->
                 if (leftGroup) {
                     scope.launch { navController.navigate("main_screen"); }
@@ -913,7 +957,7 @@ fun EditModal(chatJson: JSONObject, closeCallback: () -> Unit, navController: Na
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileViewer(userID:Int, chatJson: JSONObject, onBackClicked: () -> Unit) {
+fun ProfileViewer(userID: Int, chatJson: JSONObject, onBackClicked: () -> Unit) {
     var extraInfo by remember { mutableStateOf<JSONObject?>(null) }
 
     val context = LocalContext.current;
@@ -924,10 +968,17 @@ fun ProfileViewer(userID:Int, chatJson: JSONObject, onBackClicked: () -> Unit) {
             if (res.success) {
                 extraInfo = res.data;
             } else {
-               scope.launch {
-                   Log.e("ProfileViewer", "Failed to load extra info for this user: ${res.message}")
-                   Toast.makeText(context, "Failed to load extra info for this user: ${res.message}", Toast.LENGTH_LONG).show()
-               }
+                scope.launch {
+                    Log.e(
+                        "ProfileViewer",
+                        "Failed to load extra info for this user: ${res.message}"
+                    )
+                    Toast.makeText(
+                        context,
+                        "Failed to load extra info for this user: ${res.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
             }
         }
     }
@@ -938,7 +989,10 @@ fun ProfileViewer(userID:Int, chatJson: JSONObject, onBackClicked: () -> Unit) {
                 title = { Text(chatJson.getString("name")) },
                 navigationIcon = {
                     IconButton(onClick = onBackClicked) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
                 }
             )
@@ -952,14 +1006,20 @@ fun ProfileViewer(userID:Int, chatJson: JSONObject, onBackClicked: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Placeholder for profile image
-            LoadImageFromUrl( "https://pigon.ddns.net/api/v1/auth/pfp?id=$userID&smol=true")
+            LoadImageFromUrl("https://pigon.ddns.net/api/v1/auth/pfp?id=$userID&smol=true")
 
             Spacer(modifier = Modifier.height(16.dp))
 
             if (extraInfo != null) {
-                Text(extraInfo!!.getString("fullname"), style = MaterialTheme.typography.headlineMedium)
+                Text(
+                    extraInfo!!.getString("fullname"),
+                    style = MaterialTheme.typography.headlineMedium
+                )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(decodeHTML(extraInfo!!.getString("bio").replace("\n", "<br>")), style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    decodeHTML(extraInfo!!.getString("bio").replace("\n", "<br>")),
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
         }
     }
