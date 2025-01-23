@@ -154,6 +154,8 @@ fun LoginScreen(
                                                     SocketConnection.init(true)
                                                     navController.navigate("main_screen")
                                                 }
+                                            } else {
+                                                dasMessage = res.message;
                                             }
                                         })
                                     } else {

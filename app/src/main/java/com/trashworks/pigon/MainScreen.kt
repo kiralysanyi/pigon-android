@@ -223,6 +223,15 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                                 navController.navigate("devices_screen")
                             }
                         )
+
+                        NavigationDrawerItem(
+                            label = { Text(text = "Passkey Settings") },
+                            selected = false,
+                            onClick = {
+                                navController.navigate("passkey_settings")
+                            }
+                        )
+
                         NavigationDrawerItem(
                             label = { Text(text = "New Chat") },
                             selected = false,

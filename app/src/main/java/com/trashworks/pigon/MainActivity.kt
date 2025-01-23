@@ -258,6 +258,10 @@ fun PigonAppNavGraph(activityContext: Context, activity: MainActivity) {
             NewGroupScreen(navController)
         }
 
+        composable("passkey_settings") {
+            PasskeySettings(navController)
+        }
+
         composable<Group> { backStackEntry ->
             val group: Group = backStackEntry.toRoute()
             NewGroupScreen(navController, group.chatInfo)

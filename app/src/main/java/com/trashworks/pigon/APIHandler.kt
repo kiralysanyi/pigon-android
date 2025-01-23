@@ -339,6 +339,65 @@ object APIHandler {
         }
     }
 
+    fun disablePasskeys(onResult: (ReturnObject) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        GlobalScope.launch(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url("$uri/api/v1/auth/webauthn/passkeys")
+                .headers(requestHeaders)
+                .delete()
+                .build()
+
+            try {
+                val response = client.newCall(request).execute()
+                val responseString = response.body?.string();
+                val responseJson = JSONObject(responseString);
+                onResult(ReturnObject(responseJson.getBoolean("success"), responseJson.getString("message")))
+            } catch (e: Exception) {
+                Log.e("DisablePasskeys", e.toString())
+                onResult(ReturnObject(false, e.toString()))
+            }
+
+        }
+
+    }
+
+    fun registerPasskey(registration: String, challenge: String, onResult: (ReturnObject) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+        val body = JSONObject().apply {
+            put("registration", JSONObject(registration))
+            put("challenge", challenge)
+        }
+        Log.d("Webauthn", "$body")
+        GlobalScope.launch(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url("$uri/api/v1/auth/webauthn/register")
+                .headers(requestHeaders)
+                .post(body.toString().toRequestBody())
+                .build()
+
+            val response = client.newCall(request).execute()
+            val responseString = response.body?.string();
+            Log.d("Webauthn", responseString!!)
+            val responseJson = JSONObject(responseString);
+            onResult(ReturnObject(responseJson.getBoolean("success"), responseJson.getString("message")))
+
+            try {
+
+            } catch (e: Exception) {
+                Log.e("Webauthn-APIHandler", e.toString())
+                onResult(ReturnObject(false, e.toString()))
+            }
+        }
+    }
+
     fun getDeviceId(onResult: (String) -> Unit) {
         GlobalScope.launch(Dispatchers.IO) {
             getDevices { res ->

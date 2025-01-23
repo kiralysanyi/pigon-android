@@ -25,8 +25,8 @@ android {
         applicationId = "com.trashworks.pigon"
         minSdk = 33
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.9"
+        versionCode = 4
+        versionName = "2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         signingConfig = signingConfigs.getByName("debug")
