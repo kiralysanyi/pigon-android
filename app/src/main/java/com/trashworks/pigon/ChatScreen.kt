@@ -229,6 +229,8 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
             .collect { isAtTop = it }
     }
 
+    var showSendingOverlay by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
 
 
@@ -273,14 +275,16 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
             Log.d("Selected media", uri.toString())
             if (uri != null) {
                 scope.launch {
+                    showSendingOverlay = true;
                     APIHandler.uploadToCdn(
                         location = uri, chatID = chatID,
                         onResult = { filename ->
                             Log.d("Sendfile", filename)
                             SocketConnection.socket.emit(
                                 "message",
-                                JSONObject("{\"chatID\": $chatID, \"message\": {\"type\": \"image\", \"content\": \"$filename\"}}")
+                                JSONObject("{\"chatID\": $chatID, \"message\": {\"type\": \"${getMediaType(context, uri)}\", \"content\": \"$filename\"}}")
                             )
+                            showSendingOverlay = false;
                         },
                         context = context,
                     )
@@ -601,7 +605,7 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                         .background(MaterialTheme.colorScheme.secondary)
                         .clickable {
                             launcher.launch(
-                                PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                PickVisualMediaRequest(mediaType = ActivityResultContracts.PickVisualMedia.ImageAndVideo)
                             )
                         },
                     tint = MaterialTheme.colorScheme.onSecondary
@@ -766,6 +770,21 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                     scope.launch { navController.navigate("main_screen"); }
                 } else {
                     showProfileInfo = false
+                }
+            }
+        }
+        if (showSendingOverlay) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator()
+                    Text("Sending file", color = MaterialTheme.colorScheme.onBackground)
                 }
             }
         }
