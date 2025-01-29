@@ -233,6 +233,14 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
                         )
 
                         NavigationDrawerItem(
+                            label = { Text(text = "User information") },
+                            selected = false,
+                            onClick = {
+                                navController.navigate("userinfo_settings")
+                            }
+                        )
+
+                        NavigationDrawerItem(
                             label = { Text(text = "New Chat") },
                             selected = false,
                             onClick = {

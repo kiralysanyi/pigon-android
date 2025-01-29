@@ -252,6 +252,10 @@ fun PigonAppNavGraph(activityContext: Context, activity: MainActivity) {
             LoginScreen(navController = navController, dsWrapper, context, activityContext)
         }
 
+        composable("userinfo_settings") {
+            UserinfoSettings(navController);
+        }
+
         composable("devices_screen") {
             DevicesScreen(navController = navController)
         }

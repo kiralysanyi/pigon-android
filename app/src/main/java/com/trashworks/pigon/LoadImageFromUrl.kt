@@ -104,6 +104,13 @@ fun loadImageFromDiskCache(context: Context, url: String): Bitmap? {
     return bitmap;
 }
 
+fun clearDiskCache(context: Context) {
+    val cacheDir = context.cacheDir
+    val files = cacheDir.listFiles()
+    for (file in files) {
+        file.delete()
+    }
+}
 
 fun saveImageToDiskCache(context: Context, url: String, bitmap: Bitmap) {
 

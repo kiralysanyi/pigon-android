@@ -862,6 +862,58 @@ object APIHandler {
         }
     }
 
+    suspend fun uploadPfp(
+        location: Uri,
+        onResult: (ReturnObject) -> Unit,
+        context: Context
+    ) {
+        if (!isLoggedIn) {
+            return;
+        }
+
+        withContext(Dispatchers.IO) {
+            val file = uriToFile(context, location)
+
+            // Create MultipartBody.Part for the file
+            val fileRequestBody = file.asRequestBody("image/*".toMediaTypeOrNull())
+            val filePart = MultipartBody.Part.createFormData("image", file.name, fileRequestBody)
+
+            // Build the MultipartBody
+            val multipartBody = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addPart(filePart) // Add the file
+                .build()
+
+            // Create OkHttp client and request
+
+            val request = Request.Builder()
+                .url("$uri/api/v1/auth/pfp")
+                .post(multipartBody)
+                .headers(requestHeaders)
+                .build()
+
+            // Execute the request
+            try {
+                val response = client.newCall(request).execute()
+                if (!response.isSuccessful) {
+                    response.body?.string()?.let {
+                        Log.e("PFP", it)
+                        onResult(ReturnObject(false, it))
+                    }
+                } else {
+                    val responseString = response.body?.string();
+                    val resJson = JSONObject(responseString)
+                    Log.d("PFP", resJson.toString())
+                    onResult(ReturnObject(true, "Successfully uploaded profile picture", data = resJson))
+                }
+
+            } catch (e: Exception) {
+                Log.e("PFP_error", e.toString())
+            }
+
+        }
+    }
+
     suspend fun uploadToCdn(
         location: Uri,
         onResult: (filename: String) -> Unit,
