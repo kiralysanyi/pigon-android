@@ -126,7 +126,6 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
     }
 
 
-
     var userInfoLoaded by remember {
         mutableStateOf(false);
     }
@@ -249,8 +248,7 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
             val isLastItemVisible =
                 listState.firstVisibleItemIndex + listState.layoutInfo.visibleItemsInfo.count() == listState.layoutInfo.totalItemsCount
             isLastItemVisible
-        }
-            .distinctUntilChanged() // Avoid redundant updates
+        }.distinctUntilChanged() // Avoid redundant updates
             .collect { isAtTop = it }
     }
 
@@ -306,12 +304,10 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                         onResult = { filename ->
                             Log.d("Sendfile", filename)
                             SocketConnection.socket.emit(
-                                "message",
-                                JSONObject(
+                                "message", JSONObject(
                                     "{\"chatID\": $chatID, \"message\": {\"type\": \"${
                                         getMediaType(
-                                            context,
-                                            uri
+                                            context, uri
                                         )
                                     }\", \"content\": \"$filename\"}}"
                                 )
@@ -328,171 +324,181 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
     val hazeState = remember { HazeState() }
     PigonTheme {
         val overlayColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f)
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .imePadding()
-        ) {
-            //background image
-            Image(
-                painter = painterResource(id = R.drawable.background),
-                contentDescription = "Chat Background",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.matchParentSize().blur(16.dp)
-            )
 
-            LazyColumn(
+        //main container box
+        Box(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            //messages box
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .imePadding()
                     .hazeSource(state = hazeState, zIndex = 0f),
-                state = listState,
-                reverseLayout = true,
-                horizontalAlignment = Alignment.Start
             ) {
-                if (messagesLoaded == true && userInfoLoaded) {
-                    //render messages
+                //background image
+                Image(
+                    painter = painterResource(id = R.drawable.background),
+                    contentDescription = "Chat Background",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .blur(16.dp)
+                )
 
-                    item {
-                        Spacer(modifier = Modifier.height(100.dp))
-                    }
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize(),
+                    state = listState,
+                    reverseLayout = true,
+                    horizontalAlignment = Alignment.Start
+                ) {
+                    if (messagesLoaded == true && userInfoLoaded) {
+                        //render messages
 
-                    items(messages) { message ->
-                        val msgData = JSONObject(message.getString("message"));
-
-                        var bg = MaterialTheme.colorScheme.secondaryContainer;
-                        var color = MaterialTheme.colorScheme.onSecondaryContainer;
-
-                        var senderID = 0;
-                        try {
-                            senderID = message.getInt("senderid")
-                        } catch (e: Exception) {
-                            senderID = message.getInt("senderID")
+                        item {
+                            Spacer(modifier = Modifier.height(100.dp))
                         }
 
+                        items(messages) { message ->
+                            val msgData = JSONObject(message.getString("message"));
 
-                        if (senderID == userInfo.getInt("id")) {
-                            bg = MaterialTheme.colorScheme.primaryContainer
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        }
+                            var bg = MaterialTheme.colorScheme.secondaryContainer;
+                            var color = MaterialTheme.colorScheme.onSecondaryContainer;
 
-                        var senderName = "";
-                        try {
-                            senderName = message.getString("username");
-                        } catch (e: Exception) {
-                            senderName = message.getString("senderName")
-                        }
+                            var senderID = 0;
+                            try {
+                                senderID = message.getInt("senderid")
+                            } catch (e: Exception) {
+                                senderID = message.getInt("senderID")
+                            }
 
-                        var read = true;
 
-                        try {
-                            read = message.getBoolean("read");
+                            if (senderID == userInfo.getInt("id")) {
+                                bg = MaterialTheme.colorScheme.primaryContainer
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            }
 
-                        } catch (e: Exception) {
-                            Log.e("AA", e.toString())
-                            read = true;
-                        }
+                            var senderName = "";
+                            try {
+                                senderName = message.getString("username");
+                            } catch (e: Exception) {
+                                senderName = message.getString("senderName")
+                            }
 
-                        if (read == false) {
-                            bg = MaterialTheme.colorScheme.primary;
-                            color = MaterialTheme.colorScheme.onPrimary;
-                        }
+                            var read = true;
 
-                        Column(
-                            modifier = Modifier
-                                .padding(16.dp)
-                                .clip(
-                                    RoundedCornerShape(16.dp)
-                                )
-                                .widthIn(max = 250.dp)
-                                .background(bg)
+                            try {
+                                read = message.getBoolean("read");
 
-                        ) {
-                            Row(
+                            } catch (e: Exception) {
+                                Log.e("AA", e.toString())
+                                read = true;
+                            }
+
+                            if (read == false) {
+                                bg = MaterialTheme.colorScheme.primary;
+                                color = MaterialTheme.colorScheme.onPrimary;
+                            }
+
+                            Column(
                                 modifier = Modifier
-                                    .padding(10.dp)
-                            ) {
-                                LoadImageFromUrl(
-                                    "https://pigon.ddns.net/api/v1/auth/pfp?id=${
-                                        message.getInt(
-                                            "senderid"
-                                        )
-                                    }&smol=true",
-                                    modifier = Modifier
-                                        .width(32.dp)
-                                        .height(32.dp)
-                                        .clip(RoundedCornerShape(32.dp))
-                                )
-
-                                Text(
-                                    text = senderName,
-                                    color = MaterialTheme.colorScheme.onBackground,
-                                    modifier = Modifier.padding(start = 10.dp)
-                                )
-
-                            }
-
-                            Row {
-
-                                if (msgData.getString("type") == "text") {
-                                    Text(
-                                        decodeHTML(msgData.getString("content")),
-                                        color = color,
-                                        modifier = Modifier.padding(16.dp)
+                                    .padding(16.dp)
+                                    .clip(
+                                        RoundedCornerShape(16.dp)
                                     )
-                                }
+                                    .widthIn(max = 250.dp)
+                                    .background(bg)
 
-                                if (msgData.getString("type") == "image") {
-                                    val imgUrl =
-                                        "https://pigon.ddns.net/" + msgData.getString("content");
-                                    Log.d("Loadimage", imgUrl)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp)
+                                ) {
                                     LoadImageFromUrl(
-                                        imgUrl,
+                                        "https://pigon.ddns.net/api/v1/auth/pfp?id=${
+                                            message.getInt(
+                                                "senderid"
+                                            )
+                                        }&smol=true",
                                         modifier = Modifier
-                                            .heightIn(max = 200.dp)
-                                            .clickable {
-                                                Log.d("ImageViewer", "Opening image viewer")
-                                                imageViewerSource = imgUrl;
-                                                isImageViewerOpen = true;
-                                            })
-                                }
-                                if (msgData.getString("type") == "video") {
-                                    val videoUrl =
-                                        "https://pigon.ddns.net/" + msgData.getString("content");
-                                    Button(onClick = {
-                                        videoViewerSource = videoUrl
-                                        isVideoViewerOpen = true
-                                    }, modifier = Modifier) {
-                                        Text("Play Video")
-                                    }
+                                            .width(32.dp)
+                                            .height(32.dp)
+                                            .clip(RoundedCornerShape(32.dp))
+                                    )
+
+                                    Text(
+                                        text = senderName,
+                                        color = MaterialTheme.colorScheme.onBackground,
+                                        modifier = Modifier.padding(start = 10.dp)
+                                    )
+
                                 }
 
+                                Row {
+
+                                    if (msgData.getString("type") == "text") {
+                                        Text(
+                                            decodeHTML(msgData.getString("content")),
+                                            color = color,
+                                            modifier = Modifier.padding(16.dp)
+                                        )
+                                    }
+
+                                    if (msgData.getString("type") == "image") {
+                                        val imgUrl =
+                                            "https://pigon.ddns.net/" + msgData.getString("content");
+                                        Log.d("Loadimage", imgUrl)
+                                        LoadImageFromUrl(imgUrl,
+                                            modifier = Modifier
+                                                .heightIn(max = 200.dp)
+                                                .clickable {
+                                                    Log.d("ImageViewer", "Opening image viewer")
+                                                    imageViewerSource = imgUrl;
+                                                    isImageViewerOpen = true;
+                                                })
+                                    }
+                                    if (msgData.getString("type") == "video") {
+                                        val videoUrl =
+                                            "https://pigon.ddns.net/" + msgData.getString("content");
+                                        Button(onClick = {
+                                            videoViewerSource = videoUrl
+                                            isVideoViewerOpen = true
+                                        }, modifier = Modifier) {
+                                            Text("Play Video")
+                                        }
+                                    }
+
+                                }
                             }
+
+
                         }
 
-
+                        item {
+                            Spacer(modifier = Modifier.height(150.dp))
+                        }
                     }
 
-                    item {
-                        Spacer(modifier = Modifier.height(150.dp))
-                    }
                 }
-
             }
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .hazeEffect(state = hazeState, style = HazeStyle(backgroundColor = Color.Transparent, blurRadius = 16.dp, tint = HazeTint.Unspecified))
+                    .hazeEffect(
+                        state = hazeState, style = HazeStyle(
+                            backgroundColor = Color.Transparent,
+                            blurRadius = 32.dp,
+                            tint = HazeTint.Unspecified
+                        )
+                    )
                     .background(overlayColor)
                     .heightIn(min = 84.dp)
                     .statusBarsPadding()
                     .zIndex(10f)
-                    .align(Alignment.TopStart)
-                ,
-                contentAlignment = Alignment.Center
+                    .align(Alignment.TopStart), contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
                     contentDescription = "Go back to chats",
                     modifier = Modifier
                         .height(50.dp)
@@ -519,8 +525,7 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                                     }
                                 }
                             }
-                            LoadImageFromUrl(
-                                "https://pigon.ddns.net/api/v1/auth/pfp?id=$pfpID&smol=true",
+                            LoadImageFromUrl("https://pigon.ddns.net/api/v1/auth/pfp?id=$pfpID&smol=true",
                                 modifier = Modifier
                                     .width(50.dp)
                                     .height(50.dp)
@@ -534,8 +539,7 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
 
                         }
 
-                        Text(
-                            text = chatJson.getString("name"),
+                        Text(text = chatJson.getString("name"),
                             color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 20.sp,
                             modifier = Modifier
@@ -550,8 +554,7 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                 }
 
                 if (showEditButton) {
-                    Icon(
-                        Icons.Default.Edit,
+                    Icon(Icons.Default.Edit,
                         "Edit group",
                         tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier
@@ -562,13 +565,11 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                             .clickable {
                                 //open group editing thing
                                 openEditModal = true;
-                            }
-                    )
+                            })
                 }
 
                 if (!showEditButton && chatJson.getInt("groupchat") == 0) {
-                    Icon(
-                        Icons.Default.Call,
+                    Icon(Icons.Default.Call,
                         "Call user",
                         tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier
@@ -584,59 +585,54 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                                     if (res.success) {
                                         SocketConnection.incall = true;
                                         callJson = res.data;
-                                        SocketConnection.socket.once(
-                                            "callresponse${
-                                                res.data.getString(
-                                                    "callid"
+                                        SocketConnection.socket.once("callresponse${
+                                            res.data.getString(
+                                                "callid"
+                                            )
+                                        }", { args ->
+                                            val response = JSONObject(args[0].toString());
+                                            if (!response.getBoolean("accepted")) {
+                                                Log.d(
+                                                    "Call",
+                                                    "Declined call: ${response.getString("reason")}"
                                                 )
-                                            }", { args ->
-                                                val response = JSONObject(args[0].toString());
-                                                if (!response.getBoolean("accepted")) {
-                                                    Log.d(
-                                                        "Call",
-                                                        "Declined call: ${response.getString("reason")}"
-                                                    )
-                                                    callResponseReason =
-                                                        response.getString("reason");
-                                                    scope.launch {
-                                                        delay(2000L)
-                                                        isCalling = false;
-                                                        SocketConnection.incall = false;
-                                                        callJson = null;
-                                                    }
-                                                } else {
-                                                    GlobalScope.launch(Dispatchers.Main) {
-                                                        //open call activity res.data.toString(), isInitiator = true, chatJson.getString("name")
-                                                        val intent = Intent(
-                                                            context,
-                                                            CallActivity::class.java
-                                                        )
-                                                        intent.apply {
-                                                            flags =
-                                                                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                                                            putExtra(
-                                                                "callInfo",
-                                                                res.data.toString()
-                                                            )
-                                                            putExtra("isInitiator", true)
-                                                            putExtra(
-                                                                "displayName",
-                                                                chatJson.getString("name")
-                                                            )
-                                                        }
-                                                        context.startActivity(intent)
-                                                        SocketConnection.incall = true;
-                                                        activityContext.finish()
-                                                    }
+                                                callResponseReason = response.getString("reason");
+                                                scope.launch {
+                                                    delay(2000L)
+                                                    isCalling = false;
+                                                    SocketConnection.incall = false;
+                                                    callJson = null;
                                                 }
-                                            })
+                                            } else {
+                                                GlobalScope.launch(Dispatchers.Main) {
+                                                    //open call activity res.data.toString(), isInitiator = true, chatJson.getString("name")
+                                                    val intent = Intent(
+                                                        context, CallActivity::class.java
+                                                    )
+                                                    intent.apply {
+                                                        flags =
+                                                            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                                        putExtra(
+                                                            "callInfo", res.data.toString()
+                                                        )
+                                                        putExtra("isInitiator", true)
+                                                        putExtra(
+                                                            "displayName",
+                                                            chatJson.getString("name")
+                                                        )
+                                                    }
+                                                    context.startActivity(intent)
+                                                    SocketConnection.incall = true;
+                                                    activityContext.finish()
+                                                }
+                                            }
+                                        })
                                         SocketConnection.socket.emit("call", res.data)
                                     } else {
                                         isCalling = false;
                                     }
                                 })
-                            }
-                    )
+                            })
                 }
 
 
@@ -646,14 +642,21 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(overlayColor)
-                    .hazeEffect(state = hazeState, style = HazeStyle(backgroundColor = Color.Transparent, blurRadius = 16.dp, tint = HazeTint.Unspecified))
+                    .hazeEffect(
+                        state = hazeState, style = HazeStyle(
+                            backgroundColor = Color.Transparent,
+                            blurRadius = 32.dp,
+                            tint = HazeTint.Unspecified
+                        )
+                    )
                     .navigationBarsPadding()
-                    .align(Alignment.BottomStart)
-                ,
+                    .align(Alignment.BottomStart),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Icons.Rounded.Add, "Addicon", modifier = Modifier
+                    Icons.Rounded.Add,
+                    "Addicon",
+                    modifier = Modifier
                         .width(50.dp)
                         .height(50.dp)
                         .padding(8.dp)
@@ -677,16 +680,18 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                 ) {
                     if (inputmsg == "") {
                         Text(
-                            "Message", modifier = Modifier
+                            "Message",
+                            modifier = Modifier
                                 .padding(start = 10.dp)
                                 .align(Alignment.CenterStart),
                             color = MaterialTheme.colorScheme.secondary
                         )
                     }
-                    BasicTextField(value = inputmsg, modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.CenterStart)
-                        .padding(top = 8.dp, bottom = 8.dp, start = 8.dp, end = 66.dp),
+                    BasicTextField(value = inputmsg,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.CenterStart)
+                            .padding(top = 8.dp, bottom = 8.dp, start = 8.dp, end = 66.dp),
                         textStyle = TextStyle(
                             color = MaterialTheme.colorScheme.onSurface
                         ),
@@ -721,6 +726,7 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
 
 
             }
+
         }
 
         if (isLoading) {
@@ -735,12 +741,10 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
         }
 
         AnimatedVisibility(
-            visible = isImageViewerOpen,
-            enter = slideInVertically(
+            visible = isImageViewerOpen, enter = slideInVertically(
                 initialOffsetY = { it }, // Starts off-screen to the left
                 animationSpec = tween(durationMillis = 500) // Animation duration
-            ),
-            exit = slideOutVertically(
+            ), exit = slideOutVertically(
                 targetOffsetY = { it }, // Slides out to the left
                 animationSpec = tween(durationMillis = 500)
             )
@@ -752,7 +756,9 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                     .statusBarsPadding()
             ) {
                 Icon(
-                    Icons.Rounded.Close, "Close image viewer", modifier = Modifier
+                    Icons.Rounded.Close,
+                    "Close image viewer",
+                    modifier = Modifier
                         .width(64.dp)
                         .height(64.dp)
                         .clickable {
@@ -761,7 +767,8 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                     tint = MaterialTheme.colorScheme.onBackground
                 )
                 LoadImageFromUrl(
-                    imageViewerSource, Modifier
+                    imageViewerSource,
+                    Modifier
                         .fillMaxSize()
                         .weight(1f)
                 )
@@ -769,12 +776,10 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
         }
 
         AnimatedVisibility(
-            visible = isVideoViewerOpen,
-            enter = slideInVertically(
+            visible = isVideoViewerOpen, enter = slideInVertically(
                 initialOffsetY = { it }, // Starts off-screen to the left
                 animationSpec = tween(durationMillis = 500) // Animation duration
-            ),
-            exit = slideOutVertically(
+            ), exit = slideOutVertically(
                 targetOffsetY = { it }, // Slides out to the left
                 animationSpec = tween(durationMillis = 500)
             )
@@ -786,7 +791,9 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                     .statusBarsPadding()
             ) {
                 Icon(
-                    Icons.Rounded.Close, "Close video viewer", modifier = Modifier
+                    Icons.Rounded.Close,
+                    "Close video viewer",
+                    modifier = Modifier
                         .width(64.dp)
                         .height(64.dp)
                         .clickable {
@@ -795,7 +802,8 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                     tint = MaterialTheme.colorScheme.onBackground
                 )
                 LoadVideoFromUrl(
-                    videoViewerSource, Modifier
+                    videoViewerSource,
+                    Modifier
                         .fillMaxSize()
                         .weight(1f)
                 )
@@ -803,12 +811,10 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
         }
 
         AnimatedVisibility(
-            visible = openEditModal,
-            enter = slideInVertically(
+            visible = openEditModal, enter = slideInVertically(
                 initialOffsetY = { it }, // Starts off-screen to the left
                 animationSpec = tween(durationMillis = 500) // Animation duration
-            ),
-            exit = slideOutVertically(
+            ), exit = slideOutVertically(
                 targetOffsetY = { it }, // Slides out to the left
                 animationSpec = tween(durationMillis = 500)
             )
@@ -824,23 +830,23 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
             ) {
 
                 Text(
-                    callResponseReason, fontSize = 30.sp, modifier = Modifier
+                    callResponseReason,
+                    fontSize = 30.sp,
+                    modifier = Modifier
                         .padding(top = 30.dp)
                         .align(Alignment.TopCenter),
                     color = MaterialTheme.colorScheme.onBackground
                 )
 
-                Button(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding(),
+                Button(modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding(),
                     onClick = {
                         SocketConnection.socket.emit("cancelcall", callJson);
                         callJson = null;
                         SocketConnection.incall = false;
                         isCalling = false;
-                    }
-                ) {
+                    }) {
                     Text("Cancel")
                 }
             }
@@ -904,7 +910,9 @@ fun EditModal(chatJson: JSONObject, closeCallback: () -> Unit, navController: Na
             .navigationBarsPadding()
     ) {
         Icon(
-            Icons.Rounded.Close, "Close editor", modifier = Modifier
+            Icons.Rounded.Close,
+            "Close editor",
+            modifier = Modifier
                 .width(64.dp)
                 .height(64.dp)
                 .clickable {
@@ -952,18 +960,14 @@ fun EditModal(chatJson: JSONObject, closeCallback: () -> Unit, navController: Na
         }
 
         Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
+            modifier = Modifier.align(Alignment.BottomCenter)
         ) {
             Button(
                 onClick = {
                     //adduser
                     navController.navigate(Group(chatInfo = chatJson.toString()))
-                },
-                modifier = Modifier
-                    .padding(8.dp)
-            )
-            {
+                }, modifier = Modifier.padding(8.dp)
+            ) {
                 Text("Add/Remove participants")
             }
 
@@ -985,9 +989,7 @@ fun EditModal(chatJson: JSONObject, closeCallback: () -> Unit, navController: Na
                     contentColor = MaterialTheme.colorScheme.onErrorContainer,
                     disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     disabledContentColor = MaterialTheme.colorScheme.onSurface
-                ),
-                modifier = Modifier
-                    .padding(8.dp)
+                ), modifier = Modifier.padding(8.dp)
             ) {
                 Text("Delete group")
             }
@@ -1012,8 +1014,7 @@ fun ProfileViewer(userID: Int, chatJson: JSONObject, onBackClicked: () -> Unit) 
             } else {
                 scope.launch {
                     Log.e(
-                        "ProfileViewer",
-                        "Failed to load extra info for this user: ${res.message}"
+                        "ProfileViewer", "Failed to load extra info for this user: ${res.message}"
                     )
                     Toast.makeText(
                         context,
@@ -1025,21 +1026,16 @@ fun ProfileViewer(userID: Int, chatJson: JSONObject, onBackClicked: () -> Unit) 
         }
     }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(chatJson.getString("name")) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClicked) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                }
-            )
-        }
-    ) { innerPadding ->
+    Scaffold(topBar = {
+        CenterAlignedTopAppBar(title = { Text(chatJson.getString("name")) }, navigationIcon = {
+            IconButton(onClick = onBackClicked) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back"
+                )
+            }
+        })
+    }) { innerPadding ->
         Column(
             modifier = Modifier
                 .padding(innerPadding)
