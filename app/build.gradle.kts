@@ -26,7 +26,7 @@ android {
         minSdk = 33
         targetSdk = 35
         versionCode = 5
-        versionName = "2.1"
+        versionName = "2.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         signingConfig = signingConfigs.getByName("debug")
@@ -108,4 +108,5 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-analytics")
     implementation("io.getstream:stream-webrtc-android:1.1.1")
+    implementation("dev.chrisbanes.haze:haze:1.3.0")
 }

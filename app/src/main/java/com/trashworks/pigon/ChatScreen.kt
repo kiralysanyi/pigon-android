@@ -1,6 +1,8 @@
 package com.trashworks.pigon
 
 import android.content.Intent
+import android.graphics.RenderEffect
+import android.graphics.Shader
 import android.text.Html
 import android.util.Log
 import android.widget.Toast
@@ -14,8 +16,10 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -75,18 +79,30 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat.startActivity
 import androidx.navigation.NavController
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.trashworks.pigon.ui.theme.PigonTheme
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
 import io.socket.emitter.Emitter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -108,6 +124,8 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
     var userInfo by remember {
         mutableStateOf(JSONObject())
     }
+
+
 
     var userInfoLoaded by remember {
         mutableStateOf(false);
@@ -307,182 +325,36 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
             }
         }
 
+    val hazeState = remember { HazeState() }
     PigonTheme {
-        Column(
+        val overlayColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f)
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .imePadding()
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.tertiaryContainer)
-                    .heightIn(min = 84.dp)
-                    .statusBarsPadding(),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                    contentDescription = "Go back to chats",
-                    modifier = Modifier
-                        .height(50.dp)
-                        .padding(5.dp)
-                        .width(50.dp)
-                        .clickable {
-                            navController.navigate("main_screen")
-                        }
-                        .align(Alignment.BottomStart),
-                    tint = MaterialTheme.colorScheme.onTertiaryContainer
-
-
-                )
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    if (userInfoLoaded == true) {
-                        if (chatJson.getInt("groupchat") == 0) {
-                            //display pfp if not groupchat
-                            val participants = chatJson.getJSONArray("participants")
-                            if (participants.length() == 2) {
-                                for (i in 0..<participants.length()) {
-                                    if (participants.get(i) != userInfo.getInt("id")) {
-                                        pfpID = participants.getInt(i);
-                                    }
-                                }
-                            }
-                            LoadImageFromUrl(
-                                "https://pigon.ddns.net/api/v1/auth/pfp?id=$pfpID&smol=true",
-                                modifier = Modifier
-                                    .width(50.dp)
-                                    .height(50.dp)
-                                    .padding(5.dp)
-                                    .clip(RoundedCornerShape(50.dp))
-                                    .clickable {
-                                        showProfileInfo = true;
-                                    }
-
-                            )
-
-                        }
-
-                        Text(
-                            text = chatJson.getString("name"),
-                            color = MaterialTheme.colorScheme.onTertiaryContainer,
-                            fontSize = 20.sp,
-                            modifier = Modifier
-                                .padding(top = 10.dp, bottom = 10.dp)
-                                .clickable {
-                                    showProfileInfo = true;
-
-                                }
-
-                        )
-                    }
-                }
-
-                if (showEditButton) {
-                    Icon(
-                        Icons.Default.Edit,
-                        "Edit group",
-                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .height(45.dp)
-                            .padding(5.dp)
-                            .width(45.dp)
-                            .clickable {
-                                //open group editing thing
-                                openEditModal = true;
-                            }
-                    )
-                }
-
-                if (!showEditButton && chatJson.getInt("groupchat") == 0) {
-                    Icon(
-                        Icons.Default.Call,
-                        "Call user",
-                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .height(45.dp)
-                            .padding(5.dp)
-                            .width(45.dp)
-                            .clickable {
-                                //start call
-                                APIHandler.prepareCall(chatID, onResult = { res ->
-                                    isCalling = true;
-                                    callResponseReason = "Calling..."
-                                    if (res.success) {
-                                        SocketConnection.incall = true;
-                                        callJson = res.data;
-                                        SocketConnection.socket.once(
-                                            "callresponse${
-                                                res.data.getString(
-                                                    "callid"
-                                                )
-                                            }", { args ->
-                                                val response = JSONObject(args[0].toString());
-                                                if (!response.getBoolean("accepted")) {
-                                                    Log.d(
-                                                        "Call",
-                                                        "Declined call: ${response.getString("reason")}"
-                                                    )
-                                                    callResponseReason =
-                                                        response.getString("reason");
-                                                    scope.launch {
-                                                        delay(2000L)
-                                                        isCalling = false;
-                                                        SocketConnection.incall = false;
-                                                        callJson = null;
-                                                    }
-                                                } else {
-                                                    GlobalScope.launch(Dispatchers.Main) {
-                                                        //open call activity res.data.toString(), isInitiator = true, chatJson.getString("name")
-                                                        val intent = Intent(
-                                                            context,
-                                                            CallActivity::class.java
-                                                        )
-                                                        intent.apply {
-                                                            flags =
-                                                                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                                                            putExtra(
-                                                                "callInfo",
-                                                                res.data.toString()
-                                                            )
-                                                            putExtra("isInitiator", true)
-                                                            putExtra(
-                                                                "displayName",
-                                                                chatJson.getString("name")
-                                                            )
-                                                        }
-                                                        context.startActivity(intent)
-                                                        SocketConnection.incall = true;
-                                                        activityContext.finish()
-                                                    }
-                                                }
-                                            })
-                                        SocketConnection.socket.emit("call", res.data)
-                                    } else {
-                                        isCalling = false;
-                                    }
-                                })
-                            }
-                    )
-                }
-
-
-            }
+            //background image
+            Image(
+                painter = painterResource(id = R.drawable.background),
+                contentDescription = "Chat Background",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize().blur(16.dp)
+            )
 
             LazyColumn(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .background(MaterialTheme.colorScheme.background),
+                    .fillMaxSize()
+                    .hazeSource(state = hazeState, zIndex = 0f),
                 state = listState,
                 reverseLayout = true,
                 horizontalAlignment = Alignment.Start
             ) {
                 if (messagesLoaded == true && userInfoLoaded) {
                     //render messages
+
+                    item {
+                        Spacer(modifier = Modifier.height(100.dp))
+                    }
 
                     items(messages) { message ->
                         val msgData = JSONObject(message.getString("message"));
@@ -599,15 +471,185 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
 
 
                     }
+
+                    item {
+                        Spacer(modifier = Modifier.height(150.dp))
+                    }
                 }
+
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .hazeEffect(state = hazeState, style = HazeStyle(backgroundColor = Color.Transparent, blurRadius = 16.dp, tint = HazeTint.Unspecified))
+                    .background(overlayColor)
+                    .heightIn(min = 84.dp)
+                    .statusBarsPadding()
+                    .zIndex(10f)
+                    .align(Alignment.TopStart)
+                ,
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+                    contentDescription = "Go back to chats",
+                    modifier = Modifier
+                        .height(50.dp)
+                        .padding(5.dp)
+                        .width(50.dp)
+                        .clickable {
+                            navController.navigate("main_screen")
+                        }
+                        .align(Alignment.BottomStart),
+                    tint = MaterialTheme.colorScheme.onSurface
+
+
+                )
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (userInfoLoaded == true) {
+                        if (chatJson.getInt("groupchat") == 0) {
+                            //display pfp if not groupchat
+                            val participants = chatJson.getJSONArray("participants")
+                            if (participants.length() == 2) {
+                                for (i in 0..<participants.length()) {
+                                    if (participants.get(i) != userInfo.getInt("id")) {
+                                        pfpID = participants.getInt(i);
+                                    }
+                                }
+                            }
+                            LoadImageFromUrl(
+                                "https://pigon.ddns.net/api/v1/auth/pfp?id=$pfpID&smol=true",
+                                modifier = Modifier
+                                    .width(50.dp)
+                                    .height(50.dp)
+                                    .padding(5.dp)
+                                    .clip(RoundedCornerShape(50.dp))
+                                    .clickable {
+                                        showProfileInfo = true;
+                                    }
+
+                            )
+
+                        }
+
+                        Text(
+                            text = chatJson.getString("name"),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 20.sp,
+                            modifier = Modifier
+                                .padding(top = 10.dp, bottom = 10.dp)
+                                .clickable {
+                                    showProfileInfo = true;
+
+                                }
+
+                        )
+                    }
+                }
+
+                if (showEditButton) {
+                    Icon(
+                        Icons.Default.Edit,
+                        "Edit group",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .height(45.dp)
+                            .padding(5.dp)
+                            .width(45.dp)
+                            .clickable {
+                                //open group editing thing
+                                openEditModal = true;
+                            }
+                    )
+                }
+
+                if (!showEditButton && chatJson.getInt("groupchat") == 0) {
+                    Icon(
+                        Icons.Default.Call,
+                        "Call user",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .height(45.dp)
+                            .padding(5.dp)
+                            .width(45.dp)
+                            .clickable {
+                                //start call
+                                APIHandler.prepareCall(chatID, onResult = { res ->
+                                    isCalling = true;
+                                    callResponseReason = "Calling..."
+                                    if (res.success) {
+                                        SocketConnection.incall = true;
+                                        callJson = res.data;
+                                        SocketConnection.socket.once(
+                                            "callresponse${
+                                                res.data.getString(
+                                                    "callid"
+                                                )
+                                            }", { args ->
+                                                val response = JSONObject(args[0].toString());
+                                                if (!response.getBoolean("accepted")) {
+                                                    Log.d(
+                                                        "Call",
+                                                        "Declined call: ${response.getString("reason")}"
+                                                    )
+                                                    callResponseReason =
+                                                        response.getString("reason");
+                                                    scope.launch {
+                                                        delay(2000L)
+                                                        isCalling = false;
+                                                        SocketConnection.incall = false;
+                                                        callJson = null;
+                                                    }
+                                                } else {
+                                                    GlobalScope.launch(Dispatchers.Main) {
+                                                        //open call activity res.data.toString(), isInitiator = true, chatJson.getString("name")
+                                                        val intent = Intent(
+                                                            context,
+                                                            CallActivity::class.java
+                                                        )
+                                                        intent.apply {
+                                                            flags =
+                                                                Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                                            putExtra(
+                                                                "callInfo",
+                                                                res.data.toString()
+                                                            )
+                                                            putExtra("isInitiator", true)
+                                                            putExtra(
+                                                                "displayName",
+                                                                chatJson.getString("name")
+                                                            )
+                                                        }
+                                                        context.startActivity(intent)
+                                                        SocketConnection.incall = true;
+                                                        activityContext.finish()
+                                                    }
+                                                }
+                                            })
+                                        SocketConnection.socket.emit("call", res.data)
+                                    } else {
+                                        isCalling = false;
+                                    }
+                                })
+                            }
+                    )
+                }
+
 
             }
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                    .navigationBarsPadding(),
+                    .background(overlayColor)
+                    .hazeEffect(state = hazeState, style = HazeStyle(backgroundColor = Color.Transparent, blurRadius = 16.dp, tint = HazeTint.Unspecified))
+                    .navigationBarsPadding()
+                    .align(Alignment.BottomStart)
+                ,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
