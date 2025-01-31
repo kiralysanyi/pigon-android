@@ -91,19 +91,16 @@ object APIHandler {
                 put("chatid", chatID)
             }
             try {
-                val request = Request.Builder()
-                    .url("$uri/api/v1/chat/leave")
-                    .headers(requestHeaders)
-                    .post(body.toString().toRequestBody())
-                    .build()
+                val request =
+                    Request.Builder().url("$uri/api/v1/chat/leave").headers(requestHeaders)
+                        .post(body.toString().toRequestBody()).build()
 
                 val response = client.newCall(request).execute()
 
                 val responseJson = JSONObject(response.body?.string())
                 onResult(
                     ReturnObject(
-                        responseJson.getBoolean("success"),
-                        responseJson.getString("message")
+                        responseJson.getBoolean("success"), responseJson.getString("message")
                     )
                 )
             } catch (e: Exception) {
@@ -127,11 +124,9 @@ object APIHandler {
                     put("registrationToken", token)
                 }
                 val reqbody = body.toString().toRequestBody(contentType = json)
-                val request = Request.Builder()
-                    .url("$uri/api/v1/firebase/register")
-                    .headers(requestHeaders)
-                    .post(reqbody)
-                    .build()
+                val request =
+                    Request.Builder().url("$uri/api/v1/firebase/register").headers(requestHeaders)
+                        .post(reqbody).build()
 
                 try {
                     val response = client.newCall(request).execute()
@@ -142,8 +137,7 @@ object APIHandler {
                     val responseJson = JSONObject(responseString);
                     onResult(
                         ReturnObject(
-                            responseJson.getBoolean("success"),
-                            responseJson.getString("message")
+                            responseJson.getBoolean("success"), responseJson.getString("message")
                         )
                     );
                 } catch (e: Exception) {
@@ -158,11 +152,8 @@ object APIHandler {
 
 
     fun prepareCall(chatid: Int, onResult: (ReturnObject) -> Unit) {
-        val request = Request.Builder()
-            .url("$uri/api/v1/chat/prepareCall")
-            .headers(requestHeaders)
-            .post("""{"chatid": $chatid}""".toRequestBody())
-            .build()
+        val request = Request.Builder().url("$uri/api/v1/chat/prepareCall").headers(requestHeaders)
+            .post("""{"chatid": $chatid}""".toRequestBody()).build()
 
         GlobalScope.launch(Dispatchers.IO) {
             try {
@@ -198,11 +189,9 @@ object APIHandler {
                     put("deviceID", deviceID)
                 }
                 val reqbody = body.toString().toRequestBody(contentType = json)
-                val request = Request.Builder()
-                    .url("$uri/api/v1/auth/removedevice")
-                    .headers(requestHeaders)
-                    .delete(reqbody)
-                    .build()
+                val request =
+                    Request.Builder().url("$uri/api/v1/auth/removedevice").headers(requestHeaders)
+                        .delete(reqbody).build()
 
                 try {
                     val response = client.newCall(request).execute()
@@ -213,8 +202,7 @@ object APIHandler {
                     val responseJson = JSONObject(responseString);
                     onResult(
                         ReturnObject(
-                            responseJson.getBoolean("success"),
-                            responseJson.getString("message")
+                            responseJson.getBoolean("success"), responseJson.getString("message")
                         )
                     );
                 } catch (e: Exception) {
@@ -239,11 +227,9 @@ object APIHandler {
                     "targetids": [${userIDs.joinToString(",")}]
                 }
             """.trimIndent().toRequestBody()
-            val request = Request.Builder()
-                .url("$uri/api/v1/chat/groupuser")
-                .headers(requestHeaders)
-                .post(body)
-                .build()
+            val request =
+                Request.Builder().url("$uri/api/v1/chat/groupuser").headers(requestHeaders)
+                    .post(body).build()
 
             try {
                 val response = client.newCall(request).execute()
@@ -274,11 +260,9 @@ object APIHandler {
                     "targetid": $userID
                 }
             """.trimIndent().toRequestBody()
-            val request = Request.Builder()
-                .url("$uri/api/v1/chat/groupuser")
-                .headers(requestHeaders)
-                .delete(body)
-                .build()
+            val request =
+                Request.Builder().url("$uri/api/v1/chat/groupuser").headers(requestHeaders)
+                    .delete(body).build()
 
             try {
                 val response = client.newCall(request).execute()
@@ -308,11 +292,7 @@ object APIHandler {
             url = "$uri/api/v1/auth/userinfo?userID=$userID"
         }
         GlobalScope.launch(Dispatchers.IO) {
-            val request = Request.Builder()
-                .url(url)
-                .headers(requestHeaders)
-                .get()
-                .build()
+            val request = Request.Builder().url(url).headers(requestHeaders).get().build()
 
             try {
                 val response = client.newCall(request).execute()
@@ -324,9 +304,7 @@ object APIHandler {
                     withContext(Dispatchers.Main) {
                         onResult(
                             ReturnObject(
-                                res.getBoolean("success"),
-                                "Something went wrong...",
-                                res
+                                res.getBoolean("success"), "Something went wrong...", res
                             )
                         )
                     }
@@ -355,11 +333,9 @@ object APIHandler {
         }
 
         GlobalScope.launch(Dispatchers.IO) {
-            val request = Request.Builder()
-                .url("$uri/api/v1/auth/webauthn/passkeys")
-                .headers(requestHeaders)
-                .delete()
-                .build()
+            val request =
+                Request.Builder().url("$uri/api/v1/auth/webauthn/passkeys").headers(requestHeaders)
+                    .delete().build()
 
             try {
                 val response = client.newCall(request).execute()
@@ -367,8 +343,7 @@ object APIHandler {
                 val responseJson = JSONObject(responseString);
                 onResult(
                     ReturnObject(
-                        responseJson.getBoolean("success"),
-                        responseJson.getString("message")
+                        responseJson.getBoolean("success"), responseJson.getString("message")
                     )
                 )
             } catch (e: Exception) {
@@ -391,11 +366,9 @@ object APIHandler {
         }
         Log.d("Webauthn", "$body")
         GlobalScope.launch(Dispatchers.IO) {
-            val request = Request.Builder()
-                .url("$uri/api/v1/auth/webauthn/register")
-                .headers(requestHeaders)
-                .post(body.toString().toRequestBody())
-                .build()
+            val request =
+                Request.Builder().url("$uri/api/v1/auth/webauthn/register").headers(requestHeaders)
+                    .post(body.toString().toRequestBody()).build()
 
             val response = client.newCall(request).execute()
             val responseString = response.body?.string();
@@ -403,8 +376,7 @@ object APIHandler {
             val responseJson = JSONObject(responseString);
             onResult(
                 ReturnObject(
-                    responseJson.getBoolean("success"),
-                    responseJson.getString("message")
+                    responseJson.getBoolean("success"), responseJson.getString("message")
                 )
             )
 
@@ -441,11 +413,9 @@ object APIHandler {
         }
 
         withContext(Dispatchers.IO) {
-            val request = Request.Builder()
-                .url("$uri/api/v1/auth/devices")
-                .headers(requestHeaders)
-                .get()
-                .build()
+            val request =
+                Request.Builder().url("$uri/api/v1/auth/devices").headers(requestHeaders).get()
+                    .build()
 
             try {
                 val response = client.newCall(request).execute()
@@ -496,11 +466,8 @@ object APIHandler {
         }
 
         try {
-            val request = Request.Builder()
-                .url("$uri/api/v1/auth/search?search=$query")
-                .headers(requestHeaders)
-                .get()
-                .build()
+            val request = Request.Builder().url("$uri/api/v1/auth/search?search=$query")
+                .headers(requestHeaders).get().build()
 
             GlobalScope.launch(Dispatchers.IO) {
                 val response = client.newCall(request).execute()
@@ -536,11 +503,8 @@ object APIHandler {
 
         val requestBody = requestBodyObject.toString().toRequestBody()
 
-        val request = Request.Builder()
-            .url("$uri/api/v1/auth/extrainfo")
-            .headers(requestHeaders)
-            .post(requestBody)
-            .build()
+        val request = Request.Builder().url("$uri/api/v1/auth/extrainfo").headers(requestHeaders)
+            .post(requestBody).build()
 
         GlobalScope.launch(Dispatchers.IO) {
             try {
@@ -564,11 +528,8 @@ object APIHandler {
             return;
         }
 
-        val request = Request.Builder()
-            .url("$uri/api/v1/auth/extrainfo?userID=$userID")
-            .headers(requestHeaders)
-            .get()
-            .build()
+        val request = Request.Builder().url("$uri/api/v1/auth/extrainfo?userID=$userID")
+            .headers(requestHeaders).get().build()
 
 
         GlobalScope.launch(Dispatchers.IO) {
@@ -579,9 +540,7 @@ object APIHandler {
                 if (responseJson.getBoolean("success")) {
                     onResult(
                         ReturnObject(
-                            true,
-                            "Retrieved extra info",
-                            data = responseJson.getJSONObject("data")
+                            true, "Retrieved extra info", data = responseJson.getJSONObject("data")
                         )
                     )
                 } else {
@@ -605,11 +564,8 @@ object APIHandler {
             put("chatid", chatid)
         }
 
-        val request = Request.Builder()
-            .url("$uri/api/v1/chat/group")
-            .headers(requestHeaders)
-            .delete(body.toString().toRequestBody())
-            .build()
+        val request = Request.Builder().url("$uri/api/v1/chat/group").headers(requestHeaders)
+            .delete(body.toString().toRequestBody()).build()
 
         GlobalScope.launch(Dispatchers.IO) {
             try {
@@ -620,8 +576,7 @@ object APIHandler {
                 Log.d("Delete group", responseJson.toString())
                 onResult(
                     ReturnObject(
-                        responseJson.getBoolean("success"),
-                        responseJson.getString("message")
+                        responseJson.getBoolean("success"), responseJson.getString("message")
                     )
                 )
             } catch (e: Exception) {
@@ -630,6 +585,50 @@ object APIHandler {
             }
 
         }
+    }
+
+    fun deleteUser(username: String, password: String, onResult: (ReturnObject) -> Unit) {
+        if (!isLoggedIn) {
+            onResult(ReturnObject(false, "You have to log in first."));
+            return;
+        }
+
+        val body = JSONObject().apply {
+            put("password", password)
+            put("username", username)
+        }
+
+        val request = Request.Builder().url("$uri/api/v1/auth/delete").headers(requestHeaders)
+            .delete(body.toString().toRequestBody()).build()
+
+
+        GlobalScope.launch(Dispatchers.IO) {
+
+            try {
+
+                val response = client.newCall(request).execute()
+                val responseJson = JSONObject(response.body?.string())
+                val responseDataObject = responseJson.getJSONObject("data")
+                withContext(Dispatchers.Main) {
+                    onResult(
+                        ReturnObject(
+                            responseJson.getBoolean("success"),
+                            responseDataObject.getString("message")
+                        )
+                    )
+                }
+
+
+            } catch (e: Exception) {
+                Log.e("Delete user", e.toString())
+                withContext(Dispatchers.Main) {
+                    onResult(ReturnObject(false, e.toString()))
+                }
+            }
+
+        }
+
+
     }
 
     fun newChat(
@@ -651,11 +650,8 @@ object APIHandler {
 
         body.put("participants", participants)
 
-        val request = Request.Builder()
-            .url("$uri/api/v1/chat/create")
-            .headers(requestHeaders)
-            .post(body.toString().toRequestBody())
-            .build()
+        val request = Request.Builder().url("$uri/api/v1/chat/create").headers(requestHeaders)
+            .post(body.toString().toRequestBody()).build()
 
         try {
             GlobalScope.launch(Dispatchers.IO) {
@@ -664,8 +660,7 @@ object APIHandler {
                 val jsonResponse = JSONObject(stringResponse)
                 onResult(
                     ReturnObject(
-                        jsonResponse.getBoolean("success"),
-                        jsonResponse.getString("message")
+                        jsonResponse.getBoolean("success"), jsonResponse.getString("message")
                     )
                 )
             }
@@ -679,11 +674,9 @@ object APIHandler {
 
     fun getChallenge(onResult: (String?) -> Unit) {
         GlobalScope.launch(Dispatchers.IO) {
-            val request = Request.Builder()
-                .url("$uri/api/v1/auth/webauthn/challenge")
-                .headers(requestHeaders)
-                .get()
-                .build()
+            val request =
+                Request.Builder().url("$uri/api/v1/auth/webauthn/challenge").headers(requestHeaders)
+                    .get().build()
 
             try {
                 val response = client.newCall(request).execute()
@@ -702,11 +695,9 @@ object APIHandler {
         body.put("authentication", JSONObject(payload))
 
 
-        val request = Request.Builder()
-            .url("$uri/api/v1/auth/webauthn/auth")
-            .headers(requestHeaders)
-            .post(body.toString().toRequestBody())
-            .build()
+        val request =
+            Request.Builder().url("$uri/api/v1/auth/webauthn/auth").headers(requestHeaders)
+                .post(body.toString().toRequestBody()).build()
 
         GlobalScope.launch(Dispatchers.IO) {
             try {
@@ -720,8 +711,7 @@ object APIHandler {
                 val jsonResponse = JSONObject(stringResponse)
                 onResult(
                     ReturnObject(
-                        jsonResponse.getBoolean("success"),
-                        jsonResponse.getString("message")
+                        jsonResponse.getBoolean("success"), jsonResponse.getString("message")
                     )
                 )
             } catch (e: Exception) {
@@ -745,11 +735,7 @@ object APIHandler {
 
         // Launch a coroutine on the IO thread to make the network request
         return withContext(Dispatchers.IO) {
-            val request = Request.Builder()
-                .url(url)
-                .headers(requestHeaders)
-                .get()
-                .build()
+            val request = Request.Builder().url(url).headers(requestHeaders).get().build()
 
             try {
                 val response = client.newCall(request).execute()
@@ -761,9 +747,7 @@ object APIHandler {
                     withContext(Dispatchers.Main) {
                         onResult(
                             ReturnObject(
-                                res.getBoolean("success"),
-                                "Something went wrong...",
-                                res
+                                res.getBoolean("success"), "Something went wrong...", res
                             )
                         )
                     }
@@ -822,9 +806,7 @@ object APIHandler {
 
     fun registerUser(username: String, password: String, onResult: (ReturnObject) -> Unit) {
         GlobalScope.launch(Dispatchers.IO) {
-            val request = Request.Builder()
-                .url("$uri/api/v1/auth/register")
-                .headers(requestHeaders)
+            val request = Request.Builder().url("$uri/api/v1/auth/register").headers(requestHeaders)
                 .post("""{"username": "$username", "password": "$password"}""".toRequestBody())
                 .build()
 
@@ -838,8 +820,7 @@ object APIHandler {
                 GlobalScope.launch(Dispatchers.Main) {
                     onResult(
                         ReturnObject(
-                            responseJson.getBoolean("success"),
-                            responseData.getString("message")
+                            responseJson.getBoolean("success"), responseData.getString("message")
                         )
                     )
                 }
@@ -860,11 +841,8 @@ object APIHandler {
             return;
         }
 
-        val request = Request.Builder()
-            .url("$uri/api/v1/chat/registerPeer")
-            .headers(requestHeaders)
-            .post("""{"callid": "$callid"}""".toRequestBody())
-            .build()
+        val request = Request.Builder().url("$uri/api/v1/chat/registerPeer").headers(requestHeaders)
+            .post("""{"callid": "$callid"}""".toRequestBody()).build()
 
         try {
             GlobalScope.launch(Dispatchers.IO) {
@@ -872,8 +850,7 @@ object APIHandler {
                 val responseJson = JSONObject(response.body?.string())
                 onResult(
                     ReturnObject(
-                        responseJson.getBoolean("success"),
-                        responseJson.getString("message")
+                        responseJson.getBoolean("success"), responseJson.getString("message")
                     )
                 )
             }
@@ -889,11 +866,8 @@ object APIHandler {
             return;
         }
 
-        val request = Request.Builder()
-            .headers(requestHeaders)
-            .url("$uri/api/v1/chat/getPeerIDs?callid=$callid")
-            .get()
-            .build()
+        val request = Request.Builder().headers(requestHeaders)
+            .url("$uri/api/v1/chat/getPeerIDs?callid=$callid").get().build()
 
         try {
             GlobalScope.launch(Dispatchers.IO) {
@@ -902,9 +876,7 @@ object APIHandler {
                 GlobalScope.launch(Dispatchers.Main) {
                     onResult(
                         ReturnObject(
-                            resultJson.getBoolean("success"),
-                            "",
-                            resultJson.getJSONObject("data")
+                            resultJson.getBoolean("success"), "", resultJson.getJSONObject("data")
                         )
                     )
                 }
@@ -921,11 +893,9 @@ object APIHandler {
         }
 
         withContext(Dispatchers.IO) {
-            val request = Request.Builder()
-                .url("$uri/api/v1/auth/logout")
-                .headers(requestHeaders)
-                .get()
-                .build()
+            val request =
+                Request.Builder().url("$uri/api/v1/auth/logout").headers(requestHeaders).get()
+                    .build()
 
             try {
                 val response = client.newCall(request).execute()
@@ -957,9 +927,7 @@ object APIHandler {
     }
 
     suspend fun uploadPfp(
-        location: Uri,
-        onResult: (ReturnObject) -> Unit,
-        context: Context
+        location: Uri, onResult: (ReturnObject) -> Unit, context: Context
     ) {
         if (!isLoggedIn) {
             return;
@@ -973,18 +941,14 @@ object APIHandler {
             val filePart = MultipartBody.Part.createFormData("image", file.name, fileRequestBody)
 
             // Build the MultipartBody
-            val multipartBody = MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
+            val multipartBody = MultipartBody.Builder().setType(MultipartBody.FORM)
                 .addPart(filePart) // Add the file
                 .build()
 
             // Create OkHttp client and request
 
-            val request = Request.Builder()
-                .url("$uri/api/v1/auth/pfp")
-                .post(multipartBody)
-                .headers(requestHeaders)
-                .build()
+            val request = Request.Builder().url("$uri/api/v1/auth/pfp").post(multipartBody)
+                .headers(requestHeaders).build()
 
             // Execute the request
             try {
@@ -1000,9 +964,7 @@ object APIHandler {
                     Log.d("PFP", resJson.toString())
                     onResult(
                         ReturnObject(
-                            true,
-                            "Successfully uploaded profile picture",
-                            data = resJson
+                            true, "Successfully uploaded profile picture", data = resJson
                         )
                     )
                 }
@@ -1015,10 +977,7 @@ object APIHandler {
     }
 
     suspend fun uploadToCdn(
-        location: Uri,
-        onResult: (filename: String) -> Unit,
-        chatID: Int,
-        context: Context
+        location: Uri, onResult: (filename: String) -> Unit, chatID: Int, context: Context
     ) {
         if (!isLoggedIn) {
             return;
@@ -1032,24 +991,18 @@ object APIHandler {
             val filePart = MultipartBody.Part.createFormData("file", file.name, fileRequestBody)
 
             // Build the MultipartBody
-            val multipartBody = MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addPart(
-                    MultipartBody.Part.createFormData(
-                        "chatid",
-                        chatID.toString()
-                    )
-                ) // Add chatId
+            val multipartBody = MultipartBody.Builder().setType(MultipartBody.FORM).addPart(
+                MultipartBody.Part.createFormData(
+                    "chatid", chatID.toString()
+                )
+            ) // Add chatId
                 .addPart(filePart) // Add the file
                 .build()
 
             // Create OkHttp client and request
 
-            val request = Request.Builder()
-                .url("$uri/api/v1/chat/cdn")
-                .post(multipartBody)
-                .headers(requestHeaders)
-                .build()
+            val request = Request.Builder().url("$uri/api/v1/chat/cdn").post(multipartBody)
+                .headers(requestHeaders).build()
 
             // Execute the request
             try {
@@ -1079,11 +1032,9 @@ object APIHandler {
         return withContext(Dispatchers.IO) {
 
             // Launch a coroutine on the IO thread to make the network request
-            val request = Request.Builder()
-                .url("$uri/api/v1/chat/chats")
-                .headers(requestHeaders)
-                .get()
-                .build()
+            val request =
+                Request.Builder().url("$uri/api/v1/chat/chats").headers(requestHeaders).get()
+                    .build()
 
             try {
                 val response = client.newCall(request).execute()
@@ -1134,11 +1085,8 @@ object APIHandler {
                 put("deviceName", "${Build.BRAND} ${Build.MODEL}")
             }
             val reqbody = body.toString().toRequestBody(contentType = json)
-            val request = Request.Builder()
-                .url("$uri/api/v1/auth/login")
-                .headers(requestHeaders)
-                .post(reqbody)
-                .build()
+            val request = Request.Builder().url("$uri/api/v1/auth/login").headers(requestHeaders)
+                .post(reqbody).build()
 
             try {
                 val response = client.newCall(request).execute()

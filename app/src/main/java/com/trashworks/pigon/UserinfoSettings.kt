@@ -29,6 +29,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -59,6 +60,7 @@ fun UserProfileForm(
 ) {
     var fullName by remember { mutableStateOf("") }
     var bio by remember { mutableStateOf("") }
+
 
     LaunchedEffect(Unit) {
         if (currentUserinfo != null) {
@@ -108,6 +110,7 @@ fun UserinfoSettings(navController: NavController) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var showEditModal by remember { mutableStateOf(false) }
+    var showDeleteOverlay by remember {mutableStateOf(false)}
 
     LaunchedEffect(Unit) {
         scope.launch {
@@ -167,6 +170,7 @@ fun UserinfoSettings(navController: NavController) {
                     color = MaterialTheme.colorScheme.onTertiaryContainer,
                     fontSize = 25.sp
                 )
+
             }
 
             val launcher =
@@ -243,10 +247,40 @@ fun UserinfoSettings(navController: NavController) {
                     ) {
                         Text("Edit")
                     }
+
+                    Button(
+                        onClick = {
+                            //delete user
+                            showDeleteOverlay = true
+                        }, colors = ButtonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                            disabledContentColor = MaterialTheme.colorScheme.onSurface
+                        ), modifier = Modifier.padding(8.dp)
+                    ) {
+                        Text("Delete Account")
+                    }
                 }
             }
 
 
+        }
+
+        AnimatedVisibility(
+            visible = showDeleteOverlay,
+            enter = slideInVertically(
+                initialOffsetY = { it }, // Starts off-screen to the left
+                animationSpec = tween(durationMillis = 500) // Animation duration
+            ),
+            exit = slideOutVertically(
+                targetOffsetY = { it }, // Slides out to the left
+                animationSpec = tween(durationMillis = 500)
+            )
+        ) {
+            DeleteUserOverlay(onDismiss = { showDeleteOverlay = false }, onConfirm = {
+                navController.navigate("loading_screen")
+            })
         }
 
         AnimatedVisibility(
