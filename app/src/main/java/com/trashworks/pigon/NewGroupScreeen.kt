@@ -108,7 +108,7 @@ fun NewGroupScreen(navController: NavController, chatInfo: String? = null) {
                         .padding(7.dp)
                         .width(50.dp)
                         .clickable {
-                            navController.navigate("main_screen")
+                            navController.popBackStack()
                         }
                         .align(Alignment.BottomStart),
                     tint = MaterialTheme.colorScheme.onTertiaryContainer

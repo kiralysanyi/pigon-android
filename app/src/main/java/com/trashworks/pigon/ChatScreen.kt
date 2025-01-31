@@ -6,11 +6,14 @@ import android.graphics.Shader
 import android.text.Html
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
@@ -162,11 +165,23 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
         mutableStateOf("")
     }
 
+    BackHandler(isImageViewerOpen) {
+        isImageViewerOpen = false;
+    }
+
+    BackHandler(isVideoViewerOpen) {
+        isVideoViewerOpen = false;
+    }
+
     var page by remember {
         mutableStateOf(1)
     }
 
     var showProfileInfo by remember { mutableStateOf(false) }
+
+    BackHandler(showProfileInfo) {
+        showProfileInfo = false;
+    }
 
     var messages by remember { mutableStateOf(listOf<JSONObject>()) }
 
@@ -210,6 +225,10 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
     }
 
     var openEditModal by remember { mutableStateOf(false) }
+
+    BackHandler(openEditModal) {
+        openEditModal = false;
+    }
 
     var isCalling by remember { mutableStateOf(false) }
     var callResponseReason by remember { mutableStateOf("") }
@@ -505,7 +524,7 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                         .padding(5.dp)
                         .width(50.dp)
                         .clickable {
-                            navController.navigate("main_screen")
+                            navController.popBackStack()
                         }
                         .align(Alignment.BottomStart),
                     tint = MaterialTheme.colorScheme.onSurface
@@ -641,6 +660,7 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .imePadding()
                     .background(overlayColor)
                     .hazeEffect(
                         state = hazeState, style = HazeStyle(
@@ -749,30 +769,7 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                 animationSpec = tween(durationMillis = 500)
             )
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
-                    .statusBarsPadding()
-            ) {
-                Icon(
-                    Icons.Rounded.Close,
-                    "Close image viewer",
-                    modifier = Modifier
-                        .width(64.dp)
-                        .height(64.dp)
-                        .clickable {
-                            isImageViewerOpen = false
-                        },
-                    tint = MaterialTheme.colorScheme.onBackground
-                )
-                LoadImageFromUrl(
-                    imageViewerSource,
-                    Modifier
-                        .fillMaxSize()
-                        .weight(1f)
-                )
-            }
+            ImageViewer(imageViewerSource, onDismiss = { isImageViewerOpen = false })
         }
 
         AnimatedVisibility(
@@ -784,30 +781,7 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                 animationSpec = tween(durationMillis = 500)
             )
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background)
-                    .statusBarsPadding()
-            ) {
-                Icon(
-                    Icons.Rounded.Close,
-                    "Close video viewer",
-                    modifier = Modifier
-                        .width(64.dp)
-                        .height(64.dp)
-                        .clickable {
-                            isVideoViewerOpen = false
-                        },
-                    tint = MaterialTheme.colorScheme.onBackground
-                )
-                LoadVideoFromUrl(
-                    videoViewerSource,
-                    Modifier
-                        .fillMaxSize()
-                        .weight(1f)
-                )
-            }
+            VideoViewer(videoViewerSource, onDismiss = { isVideoViewerOpen = false })
         }
 
         AnimatedVisibility(
@@ -852,11 +826,32 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
             }
         }
 
-        if (showProfileInfo && chatJson.getInt("groupchat") == 0) {
-            ProfileViewer(pfpID, chatJson) { showProfileInfo = false }
+        AnimatedVisibility(
+            visible = showProfileInfo && chatJson.getInt("groupchat") == 0,
+            enter = slideInHorizontally(
+                initialOffsetX = { it }, // Starts off-screen to the left
+                animationSpec = tween(durationMillis = 500) // Animation duration
+            ), exit = slideOutHorizontally(
+                targetOffsetX = { it }, // Slides out to the left
+                animationSpec = tween(durationMillis = 500)
+            )
+        ) {
+            ProfileViewer(userID = pfpID, chatJson) {
+                showProfileInfo = false;
+            }
         }
 
-        if (showProfileInfo && chatJson.getInt("groupchat") == 1) {
+
+        AnimatedVisibility(
+            visible = showProfileInfo && chatJson.getInt("groupchat") == 1,
+            enter = slideInHorizontally(
+                initialOffsetX = { it }, // Starts off-screen to the left
+                animationSpec = tween(durationMillis = 500) // Animation duration
+            ), exit = slideOutHorizontally(
+                targetOffsetX = { it }, // Slides out to the left
+                animationSpec = tween(durationMillis = 500)
+            )
+        ) {
             GroupInfo(chatJson) { leftGroup ->
                 if (leftGroup) {
                     scope.launch { navController.navigate("main_screen"); }
@@ -865,7 +860,12 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                 }
             }
         }
-        if (showSendingOverlay) {
+
+        AnimatedVisibility(
+            visible = showSendingOverlay,
+            enter = scaleIn(tween(durationMillis = 300)),
+            exit = scaleOut(tween(durationMillis = 300))
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
