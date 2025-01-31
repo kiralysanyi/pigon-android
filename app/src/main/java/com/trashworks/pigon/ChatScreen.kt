@@ -117,8 +117,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 fun decodeHTML(html: String): String {
-    return Html.fromHtml(html, Html.FROM_HTML_MODE_LEGACY).toString()
+    return Html.fromHtml(Html.fromHtml(html, Html.FROM_HTML_MODE_LEGACY).toString(), Html.FROM_HTML_MODE_LEGACY).toString()
 }
+
 
 @Composable
 fun ChatScreen(navController: NavController, chatInfo: String, activityContext: MainActivity) {
@@ -415,82 +416,26 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                                 read = true;
                             }
 
-                            if (read == false) {
-                                bg = MaterialTheme.colorScheme.primary;
-                                color = MaterialTheme.colorScheme.onPrimary;
-                            }
 
-                            Column(
-                                modifier = Modifier
-                                    .padding(16.dp)
-                                    .clip(
-                                        RoundedCornerShape(16.dp)
-                                    )
-                                    .widthIn(max = 250.dp)
-                                    .background(bg)
-
+                            MessageBubble(
+                                senderName = senderName,
+                                senderID = senderID,
+                                type = msgData.getString("type"),
+                                content = msgData.getString("content"),
+                                time = formatIsoDateTime(message.getString("date")),
+                                isCurrentUser = senderID == userInfo.getInt("id"),
+                                isRead = read
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(10.dp)
-                                ) {
-                                    LoadImageFromUrl(
-                                        "https://pigon.ddns.net/api/v1/auth/pfp?id=${
-                                            message.getInt(
-                                                "senderid"
-                                            )
-                                        }&smol=true",
-                                        modifier = Modifier
-                                            .width(32.dp)
-                                            .height(32.dp)
-                                            .clip(RoundedCornerShape(32.dp))
-                                    )
-
-                                    Text(
-                                        text = senderName,
-                                        color = MaterialTheme.colorScheme.onBackground,
-                                        modifier = Modifier.padding(start = 10.dp)
-                                    )
-
+                                if (msgData.getString("type") == "image") {
+                                    imageViewerSource = "https://pigon.ddns.net/" + msgData.getString("content")
+                                    isImageViewerOpen = true;
                                 }
 
-                                Row {
-
-                                    if (msgData.getString("type") == "text") {
-                                        Text(
-                                            decodeHTML(msgData.getString("content")),
-                                            color = color,
-                                            modifier = Modifier.padding(16.dp)
-                                        )
-                                    }
-
-                                    if (msgData.getString("type") == "image") {
-                                        val imgUrl =
-                                            "https://pigon.ddns.net/" + msgData.getString("content");
-                                        Log.d("Loadimage", imgUrl)
-                                        LoadImageFromUrl(imgUrl,
-                                            modifier = Modifier
-                                                .heightIn(max = 200.dp)
-                                                .clickable {
-                                                    Log.d("ImageViewer", "Opening image viewer")
-                                                    imageViewerSource = imgUrl;
-                                                    isImageViewerOpen = true;
-                                                })
-                                    }
-                                    if (msgData.getString("type") == "video") {
-                                        val videoUrl =
-                                            "https://pigon.ddns.net/" + msgData.getString("content");
-                                        Button(onClick = {
-                                            videoViewerSource = videoUrl
-                                            isVideoViewerOpen = true
-                                        }, modifier = Modifier) {
-                                            Text("Play Video")
-                                        }
-                                    }
-
+                                if (msgData.getString("type") == "video") {
+                                    videoViewerSource = "https://pigon.ddns.net/" + msgData.getString("content")
+                                    isVideoViewerOpen = true;
                                 }
                             }
-
-
                         }
 
                         item {

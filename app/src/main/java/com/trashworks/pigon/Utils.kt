@@ -3,6 +3,10 @@ package com.trashworks.pigon
 import android.content.Context
 import android.net.Uri
 import android.webkit.MimeTypeMap
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * Determines if the given Uri points to an image or a video.
@@ -24,4 +28,11 @@ fun getMediaType(context: Context, uri: Uri): String {
         mimeType?.startsWith("video/") == true -> "video"
         else -> "unknown"
     }
+}
+
+fun formatIsoDateTime(isoString: String): String {
+    val instant = Instant.parse(isoString) // Parse ISO string
+    val formatter = DateTimeFormatter.ofPattern("MMM dd, yyyy hh:mm a", Locale.getDefault())
+        .withZone(ZoneId.systemDefault()) // Use device time zone
+    return formatter.format(instant)
 }
