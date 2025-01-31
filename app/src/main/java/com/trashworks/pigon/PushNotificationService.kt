@@ -15,6 +15,8 @@ import android.media.RingtoneManager
 import android.os.Build
 
 import androidx.core.app.NotificationCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ProcessLifecycleOwner
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -33,6 +35,10 @@ class PushNotificationService : FirebaseMessagingService() {
         })
     }
 
+    private fun isAppInForeground(): Boolean {
+        return ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+    }
+
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun onMessageReceived(message: RemoteMessage) {
@@ -40,6 +46,11 @@ class PushNotificationService : FirebaseMessagingService() {
         Log.d("NotifHandler", "Received data: ${message.data.toString()}")
 
         if (message.data["type"] == "message") {
+
+            if (message.data["chatid"]?.toInt() == MainActivity.openedChat && isAppInForeground()) {
+                return;
+            }
+
             // Check if message contains a notification payload.
             var messageID = 0;
             message.data.let { messageID = it["messageID"]?.toInt() ?: 0; }

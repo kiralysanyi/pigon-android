@@ -115,6 +115,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.LocalDateTime
 
 fun decodeHTML(html: String): String {
     return Html.fromHtml(Html.fromHtml(html, Html.FROM_HTML_MODE_LEGACY).toString(), Html.FROM_HTML_MODE_LEGACY).toString()
@@ -192,6 +193,14 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
     }
 
     val listState = rememberLazyListState()
+
+    DisposableEffect("") {
+        MainActivity.openedChat = chatID;
+
+        onDispose {
+            MainActivity.openedChat = 0;
+        }
+    }
 
     DisposableEffect("") {
         Log.d("Is socket initialized???", SocketConnection.initialized.toString())
@@ -416,13 +425,21 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                                 read = true;
                             }
 
+                            var date: String
+
+                            try {
+                                date = formatIsoDateTime(message.getString("date"))
+                            } catch(e: Exception) {
+                                Log.e("AA", e.toString())
+                                date = formatIsoDateTime()
+                            }
 
                             MessageBubble(
                                 senderName = senderName,
                                 senderID = senderID,
                                 type = msgData.getString("type"),
                                 content = msgData.getString("content"),
-                                time = formatIsoDateTime(message.getString("date")),
+                                time = date,
                                 isCurrentUser = senderID == userInfo.getInt("id"),
                                 isRead = read
                             ) {

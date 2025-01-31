@@ -4,6 +4,7 @@ import androidx.navigation.NavController
 import  io.socket.client.IO
 import  com.trashworks.pigon.APIHandler
 import io.socket.client.Socket
+import io.socket.emitter.Emitter
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope

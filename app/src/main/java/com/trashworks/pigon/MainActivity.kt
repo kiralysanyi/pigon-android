@@ -110,6 +110,7 @@ import com.google.accompanist.permissions.shouldShowRationale
 import com.google.android.datatransport.BuildConfig
 import com.google.firebase.Firebase
 import com.google.firebase.messaging.messaging
+import io.socket.emitter.Emitter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
@@ -168,6 +169,21 @@ fun checkAndRequestPermissions(activity: Activity) {
 }
 
 class MainActivity : ComponentActivity() {
+
+    companion object {
+        var isActivityOpen = false
+        var openedChat = 0
+    }
+
+    override fun onStart() {
+        super.onStart()
+        isActivityOpen = true
+    }
+
+    override fun onStop() {
+        super.onStop()
+        isActivityOpen = false
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()

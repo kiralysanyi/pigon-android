@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.google.firebase.Firebase
 import com.google.firebase.messaging.messaging
+import com.trashworks.pigon.SocketConnection.socket
 import com.trashworks.pigon.ui.theme.PigonTheme
 import io.socket.emitter.Emitter
 import kotlinx.coroutines.launch
@@ -123,7 +124,6 @@ fun MainScreen(navController: NavController, dsWrapper: DataStoreWrapper) {
         SocketConnection.socket.on("newchat", listener)
 
         SocketConnection.socket.on("message", listener)
-
         onDispose {
             SocketConnection.socket.off("message", listener)
             SocketConnection.socket.off("newchat", listener)
