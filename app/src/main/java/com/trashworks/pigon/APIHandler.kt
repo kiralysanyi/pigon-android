@@ -100,7 +100,12 @@ object APIHandler {
                 val response = client.newCall(request).execute()
 
                 val responseJson = JSONObject(response.body?.string())
-                onResult(ReturnObject(responseJson.getBoolean("success"), responseJson.getString("message")))
+                onResult(
+                    ReturnObject(
+                        responseJson.getBoolean("success"),
+                        responseJson.getString("message")
+                    )
+                )
             } catch (e: Exception) {
                 Log.e("LeaveGroup", e.toString())
                 onResult(ReturnObject(false, e.toString()))
@@ -164,7 +169,13 @@ object APIHandler {
                 val response = client.newCall(request).execute()
                 val responseJson = JSONObject(response.body?.string())
                 Log.d("PrepareCall", responseJson.toString())
-                onResult(ReturnObject(responseJson.getBoolean("succes"), responseJson.getString("message"), responseJson.getJSONObject("data")))
+                onResult(
+                    ReturnObject(
+                        responseJson.getBoolean("succes"),
+                        responseJson.getString("message"),
+                        responseJson.getJSONObject("data")
+                    )
+                )
             } catch (e: Exception) {
                 Log.e("PrepareCall", e.toString())
                 onResult(ReturnObject(false, e.toString()))
@@ -247,7 +258,6 @@ object APIHandler {
             }
 
 
-
         }
     }
 
@@ -281,7 +291,6 @@ object APIHandler {
             } catch (e: Exception) {
                 onResult(ReturnObject(false, e.toString()))
             }
-
 
 
         }
@@ -356,7 +365,12 @@ object APIHandler {
                 val response = client.newCall(request).execute()
                 val responseString = response.body?.string();
                 val responseJson = JSONObject(responseString);
-                onResult(ReturnObject(responseJson.getBoolean("success"), responseJson.getString("message")))
+                onResult(
+                    ReturnObject(
+                        responseJson.getBoolean("success"),
+                        responseJson.getString("message")
+                    )
+                )
             } catch (e: Exception) {
                 Log.e("DisablePasskeys", e.toString())
                 onResult(ReturnObject(false, e.toString()))
@@ -387,7 +401,12 @@ object APIHandler {
             val responseString = response.body?.string();
             Log.d("Webauthn", responseString!!)
             val responseJson = JSONObject(responseString);
-            onResult(ReturnObject(responseJson.getBoolean("success"), responseJson.getString("message")))
+            onResult(
+                ReturnObject(
+                    responseJson.getBoolean("success"),
+                    responseJson.getString("message")
+                )
+            )
 
             try {
 
@@ -488,7 +507,13 @@ object APIHandler {
                 val stringResponse = response.body?.string()
                 val jsonResponse = JSONObject(stringResponse)
 
-                onResult(ReturnObject(jsonResponse.getBoolean("success"), jsonResponse.getString("message"), dataArray = JSONArray(jsonResponse.getString("data"))))
+                onResult(
+                    ReturnObject(
+                        jsonResponse.getBoolean("success"),
+                        jsonResponse.getString("message"),
+                        dataArray = JSONArray(jsonResponse.getString("data"))
+                    )
+                )
             }
 
         } catch (e: Exception) {
@@ -552,7 +577,13 @@ object APIHandler {
 
                 val responseJson = JSONObject(response.body?.string())
                 if (responseJson.getBoolean("success")) {
-                    onResult(ReturnObject(true, "Retrieved extra info", data = responseJson.getJSONObject("data")))
+                    onResult(
+                        ReturnObject(
+                            true,
+                            "Retrieved extra info",
+                            data = responseJson.getJSONObject("data")
+                        )
+                    )
                 } else {
                     onResult(ReturnObject(false, responseJson.getString("message")))
                 }
@@ -562,7 +593,6 @@ object APIHandler {
         }
 
     }
-
 
 
     fun deleteGroup(chatid: Int, onResult: (ReturnObject) -> Unit) {
@@ -588,7 +618,12 @@ object APIHandler {
                 val responseJson = JSONObject(response.body?.string())
 
                 Log.d("Delete group", responseJson.toString())
-                onResult(ReturnObject(responseJson.getBoolean("success"), responseJson.getString("message")))
+                onResult(
+                    ReturnObject(
+                        responseJson.getBoolean("success"),
+                        responseJson.getString("message")
+                    )
+                )
             } catch (e: Exception) {
                 Log.e("Delete group", e.toString())
                 onResult(ReturnObject(false, e.toString()));
@@ -597,7 +632,12 @@ object APIHandler {
         }
     }
 
-    fun newChat(onResult: (ReturnObject) -> Unit, participants: JSONArray, isGroupChat: Boolean, chatName: String? = null) {
+    fun newChat(
+        onResult: (ReturnObject) -> Unit,
+        participants: JSONArray,
+        isGroupChat: Boolean,
+        chatName: String? = null
+    ) {
         if (!isLoggedIn) {
             onResult(ReturnObject(false, "You have to log in first."));
             return;
@@ -622,7 +662,12 @@ object APIHandler {
                 val response = client.newCall(request).execute()
                 val stringResponse = response.body?.string()
                 val jsonResponse = JSONObject(stringResponse)
-                onResult(ReturnObject(jsonResponse.getBoolean("success"), jsonResponse.getString("message")))
+                onResult(
+                    ReturnObject(
+                        jsonResponse.getBoolean("success"),
+                        jsonResponse.getString("message")
+                    )
+                )
             }
         } catch (e: Exception) {
             Log.e("Create chat", e.toString())
@@ -673,12 +718,16 @@ object APIHandler {
                 val stringResponse = response.body?.string()
                 Log.d("Webauthn", stringResponse.toString())
                 val jsonResponse = JSONObject(stringResponse)
-                onResult(ReturnObject(jsonResponse.getBoolean("success"), jsonResponse.getString("message")))
+                onResult(
+                    ReturnObject(
+                        jsonResponse.getBoolean("success"),
+                        jsonResponse.getString("message")
+                    )
+                )
             } catch (e: Exception) {
                 Log.e("Webauthn", e.toString())
                 onResult(ReturnObject(false, e.toString()));
             }
-
 
 
         }
@@ -771,6 +820,40 @@ object APIHandler {
         return file
     }
 
+    fun registerUser(username: String, password: String, onResult: (ReturnObject) -> Unit) {
+        GlobalScope.launch(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url("$uri/api/v1/auth/register")
+                .headers(requestHeaders)
+                .post("""{"username": "$username", "password": "$password"}""".toRequestBody())
+                .build()
+
+            try {
+                val response = client.newCall(request).execute()
+                val responseString = response.body?.string();
+                Log.d("Register", "$responseString")
+                val responseJson = JSONObject(responseString)
+                val responseData = responseJson.getJSONObject("data")
+
+                GlobalScope.launch(Dispatchers.Main) {
+                    onResult(
+                        ReturnObject(
+                            responseJson.getBoolean("success"),
+                            responseData.getString("message")
+                        )
+                    )
+                }
+
+            } catch (e: Exception) {
+                Log.e("Register", e.toString())
+                GlobalScope.launch(Dispatchers.Main) {
+                    onResult(ReturnObject(false, "Error: ${e.message}"))
+                }
+
+            }
+        }
+    }
+
     fun registerPeer(callid: String, onResult: (ReturnObject) -> Unit) {
         if (!isLoggedIn) {
             onResult(ReturnObject(false, "You have to log in first."));
@@ -787,7 +870,12 @@ object APIHandler {
             GlobalScope.launch(Dispatchers.IO) {
                 val response = client.newCall(request).execute()
                 val responseJson = JSONObject(response.body?.string())
-                onResult(ReturnObject(responseJson.getBoolean("success"), responseJson.getString("message")))
+                onResult(
+                    ReturnObject(
+                        responseJson.getBoolean("success"),
+                        responseJson.getString("message")
+                    )
+                )
             }
         } catch (e: Exception) {
             Log.e("RegisterPeer", e.toString())
@@ -812,7 +900,13 @@ object APIHandler {
                 val result = client.newCall(request).execute()
                 val resultJson = JSONObject(result.body?.string())
                 GlobalScope.launch(Dispatchers.Main) {
-                    onResult(ReturnObject(resultJson.getBoolean("success"), "", resultJson.getJSONObject("data")))
+                    onResult(
+                        ReturnObject(
+                            resultJson.getBoolean("success"),
+                            "",
+                            resultJson.getJSONObject("data")
+                        )
+                    )
                 }
             }
         } catch (e: Exception) {
@@ -904,7 +998,13 @@ object APIHandler {
                     val responseString = response.body?.string();
                     val resJson = JSONObject(responseString)
                     Log.d("PFP", resJson.toString())
-                    onResult(ReturnObject(true, "Successfully uploaded profile picture", data = resJson))
+                    onResult(
+                        ReturnObject(
+                            true,
+                            "Successfully uploaded profile picture",
+                            data = resJson
+                        )
+                    )
                 }
 
             } catch (e: Exception) {
