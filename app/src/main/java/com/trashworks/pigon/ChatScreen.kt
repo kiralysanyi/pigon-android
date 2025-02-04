@@ -221,10 +221,18 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                 }
             }
         }
+
+        val cancelListener = Emitter.Listener { args ->
+            val data = JSONObject(args[0].toString())
+            messages = messages.filter { it["messageID"] != data.getInt("messageID") }
+        }
+
         SocketConnection.socket.on("message", listener)
+        SocketConnection.socket.on("cancelmessage", cancelListener)
 
         onDispose {
             SocketConnection.socket.off("message", listener)
+            SocketConnection.socket.off("cancelmessage", cancelListener)
         }
     }
 
@@ -441,18 +449,23 @@ fun ChatScreen(navController: NavController, chatInfo: String, activityContext: 
                                 content = msgData.getString("content"),
                                 time = date,
                                 isCurrentUser = senderID == userInfo.getInt("id"),
-                                isRead = read
-                            ) {
-                                if (msgData.getString("type") == "image") {
-                                    imageViewerSource = "https://pigon.ddns.net/" + msgData.getString("content")
-                                    isImageViewerOpen = true;
-                                }
+                                isRead = read,
+                                onClick = {
+                                    if (msgData.getString("type") == "image") {
+                                        imageViewerSource = "https://pigon.ddns.net/" + msgData.getString("content")
+                                        isImageViewerOpen = true;
+                                    }
 
-                                if (msgData.getString("type") == "video") {
-                                    videoViewerSource = "https://pigon.ddns.net/" + msgData.getString("content")
-                                    isVideoViewerOpen = true;
+                                    if (msgData.getString("type") == "video") {
+                                        videoViewerSource = "https://pigon.ddns.net/" + msgData.getString("content")
+                                        isVideoViewerOpen = true;
+                                    }
+                                },
+                                onLongClick = {
+                                    SocketConnection.socket.emit("cancelmessage", JSONObject("""{"messageID": ${message.getInt("messageID")}}"""))
+                                    Toast.makeText(context, "Message canceled", Toast.LENGTH_SHORT).show()
                                 }
-                            }
+                            )
                         }
 
                         item {
